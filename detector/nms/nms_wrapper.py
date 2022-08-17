@@ -1,78 +1,58 @@
-import numpy as np
-import torch
-
-from . import nms_cpu, nms_cuda
-from .soft_nms_cpu import soft_nms_cpu
+import jittor as jt
 
 
-def nms(dets, iou_thr, device_id=None):
-    """Dispatch to either CPU or GPU NMS implementations.
+def nms(boxes,scores,thresh):
+    assert boxes.shape[-1]==4 and len(scores)==len(boxes)
+    if scores.ndim==1:
+        scores = scores.unsqueeze(-1)
+    dets = jt.concat([boxes,scores],dim=1)
+    return jt.nms(dets,thresh)
 
-    The input can be either a torch tensor or numpy array. GPU NMS will be used
-    if the input is a gpu tensor or device_id is specified, otherwise CPU NMS
-    will be used. The returned type will always be the same as inputs.
+def multiclass_nms(mlvl_bboxes, mlvl_scores, score_thr, nms, max_per_img=-1):
+    """NMS for multi-class bboxes.
 
-    Arguments:
-        dets (torch.Tensor or np.ndarray): bboxes with scores.
-        iou_thr (float): IoU threshold for NMS.
-        device_id (int, optional): when `dets` is a numpy array, if `device_id`
-            is None, then cpu nms is used, otherwise gpu_nms will be used.
+    Args:
+        multi_bboxes (Var): shape (n, #class*4) or (n, 4)
+        multi_scores (Var): shape (n, #class), where the last column
+            contains scores of the background class, but this will be ignored.
+        score_thr (float): bbox threshold, bboxes with scores lower than it
+            will not be considered.
+        nms_thr (float): NMS IoU threshold
+        max_num (int, optional): if there are more than max_num bboxes after
+            NMS, only top max_num will be kept. Default to -1.
 
     Returns:
-        tuple: kept bboxes and indice, which is always the same data type as
-            the input.
+        tuple: (dets, labels), Var of shape (k, 5),
+            (k), and (k). Dets are boxes with scores. Labels are 0-based.
     """
-    # convert dets (tensor or numpy array) to tensor
-    if isinstance(dets, torch.Tensor):
-        is_numpy = False
-        dets_th = dets.to('cpu')
-    elif isinstance(dets, np.ndarray):
-        is_numpy = True
-        device = 'cpu' if device_id is None else 'cuda:{}'.format(device_id)
-        dets_th = torch.from_numpy(dets).to(device)
+    boxes = []
+    scores = []
+    labels = []
+    n_class = mlvl_scores.size(1)
+    if mlvl_bboxes.shape[1] > 4:
+        mlvl_bboxes = mlvl_bboxes.view(mlvl_bboxes.size(0), -1, 4)
     else:
-        raise TypeError(
-            'dets must be either a Tensor or numpy array, but got {}'.format(
-                type(dets)))
+        mlvl_bboxes = mlvl_bboxes.unsqueeze(1)
+        mlvl_bboxes = mlvl_bboxes.expand((mlvl_bboxes.size(0), n_class, 4))
+    for j in range(1, n_class):
+        bbox_j = mlvl_bboxes[:, j, :]
+        score_j = mlvl_scores[:, j:j+1]
+        mask = jt.where(score_j > score_thr)[0]
+        bbox_j = bbox_j[mask, :]
+        score_j = score_j[mask]
+        dets = jt.concat([bbox_j, score_j], dim=1)
+        keep = jt.nms(dets, nms['iou_threshold'])
+        bbox_j = bbox_j[keep]
+        score_j = score_j[keep]
+        label_j = jt.ones_like(score_j).int32()*j
+        boxes.append(bbox_j)
+        scores.append(score_j)
+        labels.append(label_j)
 
-    # execute cpu or cuda nms
-    if dets_th.shape[0] == 0:
-        inds = dets_th.new_zeros(0, dtype=torch.long)
-    else:
-        if dets_th.is_cuda:
-            inds = nms_cuda.nms(dets_th, iou_thr)
-        else:
-            inds = nms_cpu.nms(dets_th, iou_thr)
-
-    if is_numpy:
-        inds = inds.cpu().numpy()
-    return dets[inds, :], inds
-
-
-def soft_nms(dets, iou_thr, method='linear', sigma=0.5, min_score=1e-3):
-    if isinstance(dets, torch.Tensor):
-        is_tensor = True
-        dets_np = dets.detach().cpu().numpy()
-    elif isinstance(dets, np.ndarray):
-        is_tensor = False
-        dets_np = dets
-    else:
-        raise TypeError(
-            'dets must be either a Tensor or numpy array, but got {}'.format(
-                type(dets)))
-
-    method_codes = {'linear': 1, 'gaussian': 2}
-    if method not in method_codes:
-        raise ValueError('Invalid method for SoftNMS: {}'.format(method))
-    new_dets, inds = soft_nms_cpu(
-        dets_np,
-        iou_thr,
-        method=method_codes[method],
-        sigma=sigma,
-        min_score=min_score)
-
-    if is_tensor:
-        return dets.new_tensor(new_dets), dets.new_tensor(
-            inds, dtype=torch.long)
-    else:
-        return new_dets.astype(np.float32), inds.astype(np.int64)
+    boxes = jt.concat(boxes, dim=0)
+    scores = jt.concat(scores, dim=0)
+    index, _ = jt.argsort(scores, dim=0, descending=True)
+    index = index[:max_per_img, 0]
+    boxes = jt.concat([boxes, scores], dim=1)[index]
+    labels = jt.concat(labels, dim=0).squeeze(1)[index]
+    return boxes, labels

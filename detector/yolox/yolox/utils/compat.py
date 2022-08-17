@@ -1,15 +1,16 @@
-#!/usr/bin/env python3
-# -*- coding:utf-8 -*-
 
-import torch
+import jittor as jt
+from jittor import init
+from jittor import nn
+# _TORCH_VER = [int(x) for x in jt.__version__.split('.')[:2]]
+# __all__ = ['meshgrid']
 
-_TORCH_VER = [int(x) for x in torch.__version__.split(".")[:2]]
-
-__all__ = ["meshgrid"]
+# def meshgrid(*tensors):
+#     if (_TORCH_VER >= [1, 10]):
+#         return jt.meshgrid(*tensors)
+#     else:
+#         return jt.meshgrid(*tensors)
 
 
 def meshgrid(*tensors):
-    if _TORCH_VER >= [1, 10]:
-        return torch.meshgrid(*tensors, indexing="ij")
-    else:
-        return torch.meshgrid(*tensors)
+    return jt.meshgrid(*tensors)

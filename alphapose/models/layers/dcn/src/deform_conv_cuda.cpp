@@ -165,9 +165,9 @@ int deform_conv_forward_cuda(at::Tensor input, at::Tensor weight,
               dilationH, dilationW, group, deformable_group);
   at::DeviceGuard guard(input.device());
   
-  input = input.contiguous();
-  offset = offset.contiguous();
-  weight = weight.contiguous();
+  input = input;
+  offset = offset;
+  weight = weight;
 
   int batch = 1;
   if (input.ndimension() == 3) {
@@ -270,10 +270,10 @@ int deform_conv_backward_input_cuda(at::Tensor input, at::Tensor offset,
               dilationH, dilationW, group, deformable_group);
   at::DeviceGuard guard(input.device());
 
-  input = input.contiguous();
-  offset = offset.contiguous();
-  gradOutput = gradOutput.contiguous();
-  weight = weight.contiguous();
+  input = input;
+  offset = offset;
+  gradOutput = gradOutput;
+  weight = weight;
 
   int batch = 1;
 
@@ -387,9 +387,9 @@ int deform_conv_backward_parameters_cuda(
               padW, dilationH, dilationW, group, deformable_group);
   at::DeviceGuard guard(input.device());
   
-  input = input.contiguous();
-  offset = offset.contiguous();
-  gradOutput = gradOutput.contiguous();
+  input = input;
+  offset = offset;
+  gradOutput = gradOutput;
 
   int batch = 1;
 
