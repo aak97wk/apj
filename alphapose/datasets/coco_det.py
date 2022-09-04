@@ -35,7 +35,7 @@ class Mscoco_det(Dataset):
             self.write_coco_json(det_file)
         assert os.path.exists(det_file), 'Error: no detection results found'
         with open(det_file, 'r') as fid:
-            self._det_json = jt.load(fid)
+            self._det_json = json.load(fid)
         self._input_size = self._preset_cfg['IMAGE_SIZE']
         self._output_size = self._preset_cfg['HEATMAP_SIZE']
         self._sigma = self._preset_cfg['SIGMA']

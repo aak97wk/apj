@@ -58,11 +58,21 @@ parser.add_argument('--vis_fast', dest='vis_fast', help='use fast rendering', ac
 '----------------------------- Tracking options -----------------------------'
 parser.add_argument('--pose_flow', dest='pose_flow', help='track humans in video with PoseFlow', action='store_true', default=False)
 parser.add_argument('--pose_track', dest='pose_track', help='track humans in video with reid', action='store_true', default=False)
+
+
 args = parser.parse_args()
 cfg = update_config(args.cfg)
 if (platform.system() == 'Windows'):
     args.sp = True
 args.gpus = ([int(i) for i in args.gpus.split(',')] if (jt.get_device_count() >= 1) else [(- 1)])
+
+# tycoer
+if jt.has_cuda and len(args.gpus) > 0:
+    jt.flags.use_cuda = 1
+else:
+    jt.flags.use_cuda = 0
+# jt.flags.use_cuda = 0
+
 # args.device = torch.device((('cuda:' + str(args.gpus[0])) if (args.gpus[0] >= 0) else 'cpu'))
 args.detbatch = (args.detbatch * len(args.gpus))
 args.posebatch = (args.posebatch * len(args.gpus))
@@ -201,6 +211,7 @@ if (__name__ == '__main__'):
             if args.profile:
                 (ckpt_time, post_time) = getTime(ckpt_time)
                 runtime_profile['pn'].append(post_time)
+            jt.gc()
         if args.profile:
             im_names_desc.set_description('det time: {dt:.4f} | pose time: {pt:.4f} | post processing: {pn:.4f}'.format(dt=np.mean(runtime_profile['dt']), pt=np.mean(runtime_profile['pt']), pn=np.mean(runtime_profile['pn'])))
     print_finish_info()
@@ -217,13 +228,13 @@ if (__name__ == '__main__'):
     #             (inps, orig_img, im_name, boxes, scores, ids, cropped_boxes) = det_loader.read()
     #             if (orig_img is None):
     #                 break
-    #             if ((boxes is None) or (boxes.nelement() == 0)):
+    #             if ((boxes is None) or (len(boxes) == 0)):
     #                 writer.save(None, None, None, None, None, orig_img, im_name)
     #                 continue
     #             if args.profile:
     #                 (ckpt_time, det_time) = getTime(start_time)
     #                 runtime_profile['dt'].append(det_time)
-    #             inps = inps.to(args.device)
+    #             # inps = inps.to(args.device)
     #             datalen = inps.size(0)
     #             leftover = 0
     #             if (datalen % batchSize):
@@ -245,7 +256,7 @@ if (__name__ == '__main__'):
     #                 runtime_profile['pt'].append(pose_time)
     #             if args.pose_track:
     #                 (boxes, scores, ids, hm, cropped_boxes) = track(tracker, args, orig_img, inps, boxes, hm, cropped_boxes, im_name, scores)
-    #             hm = hm.cpu()
+    #             # hm = hm.cpu()
     #             writer.save(boxes, scores, ids, hm, cropped_boxes, orig_img, im_name)
     #             if args.profile:
     #                 (ckpt_time, post_time) = getTime(ckpt_time)

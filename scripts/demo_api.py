@@ -115,7 +115,7 @@ class DetectionLoader():
             if (orig_img is None):
                 self.pose = (None, None, None, None, None, None, None)
                 return
-            if ((boxes is None) or (boxes.nelement() == 0)):
+            if ((boxes is None) or (len(boxes) == 0)):
                 self.pose = (None, orig_img, im_name, boxes, scores, ids, None)
                 return
             for (i, box) in enumerate(boxes):
@@ -224,7 +224,7 @@ class SingleImageAlphaPose():
                 (inps, orig_img, im_name, boxes, scores, ids, cropped_boxes) = self.det_loader.process(im_name, image).read()
                 if (orig_img is None):
                     raise Exception('no image is given')
-                if ((boxes is None) or (boxes.nelement() == 0)):
+                if ((boxes is None) or (len(boxes) == 0)):
                     if self.args.profile:
                         (ckpt_time, det_time) = getTime(start_time)
                         runtime_profile['dt'].append(det_time)
@@ -293,5 +293,6 @@ def example():
     cv2.imwrite(os.path.join(outputpath, 'vis', os.path.basename(im_name)), img)
     result = [pose]
     demo.writeJson(result, outputpath, form=args.format, for_eval=args.eval)
+
 if (__name__ == '__main__'):
     example()

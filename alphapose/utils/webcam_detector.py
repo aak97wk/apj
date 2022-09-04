@@ -133,7 +133,7 @@ class WebCamDetectionLoader():
             if ((orig_img is None) or self.stopped):
                 self.wait_and_put(self.pose_queue, (None, None, None, None, None, None, None))
                 return
-            if ((boxes is None) or (boxes.nelement() == 0)):
+            if ((boxes is None) or (len(boxes) == 0)):
                 self.wait_and_put(self.pose_queue, (None, orig_img, im_name, boxes, scores, ids, None))
                 return
             for (i, box) in enumerate(boxes):

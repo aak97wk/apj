@@ -311,7 +311,11 @@ def heatmap_to_coord_simple(hms, bbox, hms_flip=None, **kwargs):
     if (hms_flip is not None):
         hms = ((hms + hms_flip) / 2)
     if (not isinstance(hms, np.ndarray)):
-        hms = hms.numpy()
+        # hms = hms.numpy() # TODO
+        try:
+            hms = hms.numpy() # tycoer
+        except:
+            a=1
     (coords, maxvals) = get_max_pred(hms)
     hm_h = hms.shape[1]
     hm_w = hms.shape[2]

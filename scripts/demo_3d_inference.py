@@ -164,7 +164,7 @@ if (__name__ == '__main__'):
                 (inps, orig_img, im_name, boxes, scores, ids, cropped_boxes) = det_loader.read()
                 if (orig_img is None):
                     break
-                if ((boxes is None) or (boxes.nelement() == 0)):
+                if ((boxes is None) or (len(boxes) == 0)):
                     writer.save(None, None, None, None, None, orig_img, im_name)
                     continue
                 if args.profile:

@@ -102,7 +102,10 @@ class DataWriter():
                 pose_coords = []
                 pose_scores = []
                 for i in range(hm_data.shape[0]):
-                    bbox = cropped_boxes[i].tolist()
+                    try:
+                        bbox = cropped_boxes[i].tolist()
+                    except:
+                        a = 1
                     if isinstance(self.heatmap_to_coord, list):
                         (pose_coords_body_foot, pose_scores_body_foot) = self.heatmap_to_coord[0](hm_data[i][self.eval_joints[:(- face_hand_num)]], bbox, hm_shape=hm_size, norm_type=norm_type)
                         (pose_coords_face_hand, pose_scores_face_hand) = self.heatmap_to_coord[1](hm_data[i][self.eval_joints[(- face_hand_num):]], bbox, hm_shape=hm_size, norm_type=norm_type)
