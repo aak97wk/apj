@@ -82,7 +82,7 @@ Please read [docs/CrowdPose.md](docs/CrowdPose.md) for details.
 
 
 ## Installation
-Please check out [docs/INSTALL.md](docs/INSTALL.md)
+Please check out [docs/INSTALL_JITTOR.md](docs/INSTALL_JITTOR.md)
 
 ## Model Zoo
 Please check out [docs/MODEL_ZOO.md](docs/MODEL_ZOO.md)

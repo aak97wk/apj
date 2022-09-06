@@ -2,6 +2,13 @@
 <project version="4">
   <component name="PublishConfigData" autoUpload="Always" serverName="robot02_ttt">
     <serverData>
+      <paths name="20200">
+        <serverdata>
+          <mappings>
+            <mapping local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
       <paths name="21600">
         <serverdata>
           <mappings>
@@ -17,6 +24,13 @@
         </serverdata>
       </paths>
       <paths name="24000_ttt">
+        <serverdata>
+          <mappings>
+            <mapping local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="Copy of project-level server '20200'">
         <serverdata>
           <mappings>
             <mapping local="$PROJECT_DIR$" web="/" />

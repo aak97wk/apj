@@ -19,6 +19,10 @@ from alphapose.models import builder
 from alphapose.utils.config import update_config
 from detector.apis import get_detector
 from alphapose.utils.vis import getTime
+
+import sys
+sys.path.insert(0, '../..')
+
 '----------------------------- Demo options -----------------------------'
 parser = argparse.ArgumentParser(description='AlphaPose Single-Image Demo')
 parser.add_argument('--cfg', type=str, required=True, help='experiment configure file name')

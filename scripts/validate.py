@@ -13,6 +13,10 @@ from alphapose.models import builder
 from alphapose.utils.config import update_config
 from alphapose.utils.metrics import evaluate_mAP
 from alphapose.utils.transforms import flip, flip_heatmap, get_func_heatmap_to_coord
+# tycoer
+import sys
+sys.path.insert(0, '../..')
+
 parser = argparse.ArgumentParser(description='AlphaPose Validate')
 parser.add_argument('--cfg', help='experiment configure file name', required=True, type=str)
 parser.add_argument('--checkpoint', help='checkpoint file name', required=True, type=str)

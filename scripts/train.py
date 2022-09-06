@@ -18,6 +18,9 @@ from alphapose.utils.logger import board_writing, debug_writing
 from alphapose.utils.metrics import DataLogger, calc_accuracy, calc_integral_accuracy, evaluate_mAP
 from alphapose.utils.transforms import get_func_heatmap_to_coord
 # tycoer
+import sys
+sys.path.insert(0, '../..')
+
 assert opt.nThreads == 0, 'AlphaPose_jittor only support nThreads is 0.'
 assert opt.sync == False, 'As nn.SyncBatchNorm is not implemented in Jittor, "sync" is not supportted for AlphaPose_jittor'
 if jt.has_cuda:

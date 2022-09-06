@@ -98,7 +98,10 @@ def is_installed(package_name):
     return False
 if (__name__ == '__main__'):
     write_version_py()
-    setup(name='alphapose', version=get_version(), description='Code for AlphaPose', long_description=readme(), keywords='computer vision, human pose estimation', url='https://github.com/MVIG-SJTU/AlphaPose', packages=find_packages(exclude=('data', 'exp')), package_data={'': ['*.json', '*.txt']}, classifiers=['Development Status :: 4 - Beta', 'License :: OSI Approved :: Apache Software License', 'Operating System :: OS Independent', 'Programming Language :: Python :: 2', 'Programming Language :: Python :: 2.7', 'Programming Language :: Python :: 3', 'Programming Language :: Python :: 3.4', 'Programming Language :: Python :: 3.5', 'Programming Language :: Python :: 3.6'], license='GPLv3', python_requires='>=3', setup_requires=['pytest-runner', 'numpy', 'cython'], tests_require=['pytest'], install_requires=get_install_requires(), ext_modules=get_ext_modules(), cmdclass={'build_ext': BuildExtension}, zip_safe=False)
+    setup(name='alphapose', version=get_version(), description='Code for AlphaPose', long_description=readme(), keywords='computer vision, human pose estimation', url='https://github.com/MVIG-SJTU/AlphaPose', packages=find_packages(exclude=('data', 'exp')), package_data={'': ['*.json', '*.txt']}, classifiers=['Development Status :: 4 - Beta', 'License :: OSI Approved :: Apache Software License', 'Operating System :: OS Independent', 'Programming Language :: Python :: 2', 'Programming Language :: Python :: 2.7', 'Programming Language :: Python :: 3', 'Programming Language :: Python :: 3.4', 'Programming Language :: Python :: 3.5', 'Programming Language :: Python :: 3.6'], license='GPLv3', python_requires='>=3', setup_requires=['pytest-runner', 'numpy', 'cython'], tests_require=['pytest'],
+          # install_requires=get_install_requires(),
+          # ext_modules=get_ext_modules(), cmdclass={'build_ext': BuildExtension},
+          zip_safe=False)
     if ((platform.system() == 'Windows') and (not is_installed('pycocotools'))):
         print('\nInstall third-party pycocotools for Windows...')
         cmd = 'python -m pip install git+https://github.com/philferriere/cocoapi.git#subdirectory=PythonAPI'

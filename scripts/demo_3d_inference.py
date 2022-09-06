@@ -23,6 +23,8 @@ from alphapose.utils.transforms import flip, flip_heatmap
 from alphapose.utils.vis import getTime
 from alphapose.utils.webcam_detector import WebCamDetectionLoader
 from alphapose.utils.writer_smpl import DataWriterSMPL
+import sys
+sys.path.insert(0, '../..')
 '----------------------------- Demo options -----------------------------'
 parser = argparse.ArgumentParser(description='AlphaPose Demo')
 parser.add_argument('--cfg', type=str, required=True, help='experiment configure file name')
