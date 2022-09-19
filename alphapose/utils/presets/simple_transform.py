@@ -42,6 +42,11 @@ class SimpleTransform(object):
             #     self.roi_align = self.roi_align.to(gpu_device)
 
     def test_transform(self, src, bbox):
+        # tycoer
+        if isinstance(bbox, jt.Var):
+            bbox: jt.Var
+            bbox = bbox.numpy()
+
         (xmin, ymin, xmax, ymax) = bbox
         (center, scale) = _box_to_center_scale(xmin, ymin, (xmax - xmin), (ymax - ymin), self._aspect_ratio)
         scale = (scale * 1.0)

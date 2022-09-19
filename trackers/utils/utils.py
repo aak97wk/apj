@@ -25,9 +25,10 @@ def float3(x):
 def init_seeds(seed=0):
     random.seed(seed)
     np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
+    # torch.manual_seed(seed)
+    # torch.cuda.manual_seed(seed)
+    # torch.cuda.manual_seed_all(seed)
+    jt.set_global_seed(seed) # tycoer
 
 def load_classes(path):
     "\n    Loads class labels at 'path'\n    "

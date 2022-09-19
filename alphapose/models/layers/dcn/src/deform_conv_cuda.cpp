@@ -173,8 +173,8 @@ int deform_conv_forward_cuda(at::Tensor input, at::Tensor weight,
   if (input.ndimension() == 3) {
     // Force batch
     batch = 0;
-    input.unsqueeze_(0);
-    offset.unsqueeze_(0);
+    input.unsqueeze(0);
+    offset.unsqueeze(0);
   }
 
   // todo: assert batchsize dividable by im2col_step

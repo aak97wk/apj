@@ -179,6 +179,11 @@ def vis_frame(frame, im_res, opt, vis_thres, format='coco'):
             kp_preds = jt.contrib.concat((kp_preds, jt.unsqueeze(((kp_preds[5, :] + kp_preds[6, :]) / 2), 0)))
             kp_scores = jt.contrib.concat((kp_scores, jt.unsqueeze(((kp_scores[5, :] + kp_scores[6, :]) / 2), 0)))
             vis_thres.append(vis_thres[(- 1)])
+
+            # tycoer
+            kp_preds = kp_preds.numpy()
+            kp_scores = kp_scores.numpy()
+
         if opt.tracking:
             while isinstance(human['idx'], list):
                 human['idx'].sort()
@@ -204,8 +209,8 @@ def vis_frame(frame, im_res, opt, vis_thres, format='coco'):
         for n in range(kp_scores.shape[0]):
             if (kp_scores[n] <= vis_thres[n]):
                 continue
-            # (cor_x, cor_y) = (int(kp_preds[(n, 0)]), int(kp_preds[(n, 1)]))
-            (cor_x, cor_y) = (int(kp_preds[(n, 0)].int()), int(kp_preds[(n, 1)].int())) # tycoer
+            (cor_x, cor_y) = (int(kp_preds[(n, 0)]), int(kp_preds[(n, 1)]))
+            # (cor_x, cor_y) = (int(kp_preds[(n, 0)].int()), int(kp_preds[(n, 1)].int())) # tycoer
             part_line[n] = (int(cor_x), int(cor_y))
             bg = img.copy()
             if (n < len(p_color)):
@@ -232,8 +237,8 @@ def vis_frame(frame, im_res, opt, vis_thres, format='coco'):
                 length = ((((Y[0] - Y[1]) ** 2) + ((X[0] - X[1]) ** 2)) ** 0.5)
                 angle = math.degrees(math.atan2((Y[0] - Y[1]), (X[0] - X[1])))
                 stickwidth = ((kp_scores[start_p] + kp_scores[end_p]) + 1)
-                # polygon = cv2.ellipse2Poly((int(mX), int(mY)), (int((length / 2)), int(stickwidth)), int(angle), 0, 360, 1)
-                polygon = cv2.ellipse2Poly((int(mX), int(mY)), (int((length / 2)), int(stickwidth.int())), int(angle), 0, 360, 1) # tycoer
+                polygon = cv2.ellipse2Poly((int(mX), int(mY)), (int((length / 2)), int(stickwidth)), int(angle), 0, 360, 1)
+                # polygon = cv2.ellipse2Poly((int(mX), int(mY)), (int((length / 2)), int(stickwidth.int())), int(angle), 0, 360, 1) # tycoer
                 if (i < len(line_color)):
                     if opt.tracking:
                         cv2.fillConvexPoly(bg, polygon, color)

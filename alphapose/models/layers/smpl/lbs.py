@@ -17,7 +17,7 @@ def find_dynamic_lmk_idx_and_bcoords(vertices, pose, dynamic_lmk_faces_idx, dyna
     batch_size = vertices.shape[0]
     aa_pose = jt.index_select(pose.view((batch_size, (- 1), 3)), 1, neck_kin_chain)
     rot_mats = batch_rodrigues(aa_pose.view((- 1), 3), dtype=dtype).view((batch_size, (- 1), 3, 3))
-    rel_rot_mat = jt.eye(3, dtype=dtype).unsqueeze_(dim=0).repeat(batch_size, 1, 1)
+    rel_rot_mat = jt.eye(3, dtype=dtype).unsqueeze(dim=0).repeat(batch_size, 1, 1)
     for idx in range(len(neck_kin_chain)):
         rel_rot_mat = jt.bmm(rot_mats[:, idx], rel_rot_mat)
     y_rot_angle = jt.round(jt.clamp((((- rot_mat_to_euler(rel_rot_mat)) * 180.0) / np.pi), max=39)).astype(jt.long)

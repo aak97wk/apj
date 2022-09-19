@@ -1,3 +1,7 @@
+
+import jittor as jt
+from jittor import init
+from jittor import nn
 import json
 import os
 import zipfile
@@ -34,8 +38,8 @@ def oks_pose_nms(data, soft=False):
             kpt_score = 0
             valid_num = 0
             kpt = np.array(n_p['keypoints']).reshape((- 1), 3)
-            for n_np in range(kpt.shape[0]):
-                t_s = kpt[n_np][2]
+            for n_jt in range(kpt.shape[0]):
+                t_s = kpt[n_jt][2]
                 if (t_s > vis_thr):
                     kpt_score += t_s
                     valid_num += 1
@@ -155,9 +159,16 @@ def pose_nms_body(bboxes: np.ndarray,
                   pose_preds: np.ndarray,
                   pose_scores: np.ndarray,
                   areaThres=0):
+    '\n    Parametric Pose NMS algorithm\n    bboxes:         bbox locations list (n, 4)\n    bbox_scores:    bbox scores list (n, 1)\n    bbox_ids:       bbox tracking ids list (n, 1)\n    pose_preds:     pose locations list (n, kp_num, 2)\n    pose_scores:    pose scores list    (n, kp_num, 1)\n    '
     pose_scores[(pose_scores == 0)] = 1e-05
     kp_nums = pose_preds.shape[1]
     (res_bboxes, res_bbox_scores, res_bbox_ids, res_pose_preds, res_pose_scores, res_pick_ids) = ([], [], [], [], [], [])
+
+    # ori_bboxes = bboxes.clone()
+    # ori_bbox_scores = bbox_scores.clone()
+    # ori_bbox_ids = bbox_ids.clone()
+    # ori_pose_preds = pose_preds.clone()
+    # ori_pose_scores = pose_scores.clone()
 
     # tycoer
     ori_bboxes = bboxes.copy()
@@ -179,7 +190,7 @@ def pose_nms_body(bboxes: np.ndarray,
     mask = np.ones(len(human_ids)).astype(bool)
 
     # # tycoer
-    # mask, human_ids, human_scores = np.array(mask), np.array(human_ids), np.array(human_scores)
+    # mask, human_ids, human_scores = jt.array(mask), jt.array(human_ids), jt.array(human_scores)
 
     pick = []
     merge_ids = []
@@ -187,10 +198,19 @@ def pose_nms_body(bboxes: np.ndarray,
         tensor_mask = (mask == True)
         pick_id = np.argmax(human_scores[tensor_mask], axis=0).item()
         pick.append(human_ids[mask][pick_id].item()) # tycoer
+        # pick.append((human_ids[mask][pick_id]))
         ref_dist = ref_dists[human_ids[mask][pick_id]]
-        simi = get_parametric_distance(pick_id, pose_preds[tensor_mask], pose_scores[tensor_mask], float(ref_dist))
-        num_match_keypoints = PCK_match(pose_preds[tensor_mask][pick_id], pose_preds[tensor_mask], float(ref_dist))
-
+        # tycoer
+        simi = get_parametric_distance(int(pick_id),
+                                       jt.array(pose_preds[tensor_mask]),
+                                       jt.array(pose_scores[tensor_mask]),
+                                       float(ref_dist))
+        num_match_keypoints = PCK_match(jt.array(pose_preds[tensor_mask][pick_id]),
+                                        jt.array(pose_preds[tensor_mask]),
+                                        float(ref_dist))
+        simi = simi.numpy()
+        num_match_keypoints = num_match_keypoints.numpy()
+        ##
         delete_ids = (np.arange(human_scores[tensor_mask].shape[0]))[((simi > gamma) | (num_match_keypoints >= matchThreds))]
         if (delete_ids.shape[0] == 0):
             delete_ids = pick_id
@@ -211,10 +231,12 @@ def pose_nms_body(bboxes: np.ndarray,
         if (max_score < scoreThreds):
             continue
         merge_id = merge_ids[j]
-        (merge_pose, merge_score) = p_merge_fast(preds_pick[j],
-                                                 ori_pose_preds[merge_id],
-                                                 ori_pose_scores[merge_id],
+        (merge_pose, merge_score) = p_merge_fast(jt.array(preds_pick[j]),
+                                                 jt.array(ori_pose_preds[merge_id]),
+                                                 jt.array(ori_pose_scores[merge_id]),
                                                  float(ref_dists[pick[j]]))
+        merge_pose = merge_pose.numpy()
+        merge_score = merge_score.numpy()
 
         max_score = np.max(merge_score[ids])
         if (max_score < scoreThreds):
@@ -245,7 +267,13 @@ def pose_nms_fullbody(bboxes: np.ndarray,
     pose_scores[(pose_scores == 0)] = 1e-05
     kp_nums = pose_preds.shape[1]
     (res_bboxes, res_bbox_scores, res_bbox_ids, res_pose_preds, res_pose_scores, res_pick_ids) = ([], [], [], [], [], [])
+    # ori_bboxes = bboxes.clone()
+    # ori_bbox_scores = bbox_scores.clone()
+    # ori_bbox_ids = bbox_ids.clone()
+    # ori_pose_preds = pose_preds.clone()
+    # ori_pose_scores = pose_scores.clone()
 
+    # tycoer
     ori_bboxes = bboxes.copy()
     ori_bbox_scores = bbox_scores.copy()
     ori_bbox_ids = bbox_ids.copy()
@@ -260,19 +288,19 @@ def pose_nms_fullbody(bboxes: np.ndarray,
     heights = (ymax - ymin)
     ref_dists = (alpha * np.maximum(widths, heights))
     nsamples = bboxes.shape[0]
-    human_scores = pose_scores[:, :, :].mean(axis=1)
+    human_scores = pose_scores[:, :, :].mean(dim=1)
     human_ids = np.arange(nsamples)
     mask = np.ones(len(human_ids)).astype(bool)
     pick = []
     merge_ids = []
     while mask.any():
-        tensor_mask = (mask == True)
-        pick_id = np.argmax(human_scores[tensor_mask])
+        tensor_mask = (jt.Var(mask) == True)
+        pick_id = jt.argmax(human_scores[tensor_mask])
         pick.append(human_ids[mask][pick_id])
         ref_dist = ref_dists[human_ids[mask][pick_id]]
         simi = get_parametric_distance(pick_id, pose_preds[:, :, :][tensor_mask], pose_scores[:, :, :][tensor_mask], ref_dist, use_dist_mask=True)
         num_match_keypoints = PCK_match_fullbody(pose_preds[:, :, :][tensor_mask][pick_id], pose_scores[:, :, :][tensor_mask][pick_id], pose_preds[:, :, :][tensor_mask], ref_dist)
-        delete_ids = np.array(np.arange(human_scores[tensor_mask].shape[0]))[((simi > gamma) | (num_match_keypoints >= matchThreds))]
+        delete_ids = jt.array(np.arange(human_scores[tensor_mask].shape[0]))[((simi > gamma) | (num_match_keypoints >= matchThreds))]
         if (delete_ids.shape[0] == 0):
             delete_ids = pick_id
         merge_ids.append(human_ids[mask][delete_ids])
@@ -287,12 +315,12 @@ def pose_nms_fullbody(bboxes: np.ndarray,
     bbox_ids_pick = ori_bbox_ids[pick]
     for j in range(len(pick)):
         ids = np.arange(kp_nums)
-        max_score = np.max(scores_pick[(j, ids, 0)])
+        max_score = jt.max(scores_pick[(j, ids, 0)])
         if (max_score < scoreThreds):
             continue
         merge_id = merge_ids[j]
         (merge_pose, merge_score) = p_merge_fast(preds_pick[j], ori_pose_preds[merge_id], ori_pose_scores[merge_id], ref_dists[pick[j]])
-        max_score = np.max(merge_score[ids])
+        max_score = jt.max(merge_score[ids])
         if (max_score < scoreThreds):
             continue
         xmax = max(merge_pose[(ids, 0)])
@@ -316,11 +344,11 @@ def filter_result(args):
     global ori_pose_preds, ori_pose_scores, ref_dists
     kp_nums = ori_pose_preds.shape[1]
     ids = np.arange(kp_nums)
-    max_score = np.max(score_pick[(ids, 0)])
+    max_score = jt.max(score_pick[(ids, 0)])
     if (max_score < scoreThreds):
         return None
     (merge_pose, merge_score) = p_merge_fast(pred_pick, ori_pose_preds[merge_id], ori_pose_scores[merge_id], ref_dists[pick])
-    max_score = np.max(merge_score[ids])
+    max_score = jt.max(merge_score[ids])
     if (max_score < scoreThreds):
         return None
     xmax = max(merge_pose[:, 0])
@@ -329,16 +357,16 @@ def filter_result(args):
     ymin = min(merge_pose[:, 1])
     if ((((1.5 ** 2) * (xmax - xmin)) * (ymax - ymin)) < (40 * 40.5)):
         return None
-    return {'keypoints': (merge_pose - 0.3), 'kp_score': merge_score, 'proposal_score': ((np.mean(merge_score) + bbox_score_pick) + (1.25 * max(merge_score)))}
+    return {'keypoints': (merge_pose - 0.3), 'kp_score': merge_score, 'proposal_score': ((jt.mean(merge_score) + bbox_score_pick) + (1.25 * max(merge_score)))}
 
 def p_merge(ref_pose, cluster_preds, cluster_scores, ref_dist):
     '\n    Score-weighted pose merging\n    INPUT:\n        ref_pose:       reference pose          -- [kp_num, 2]\n        cluster_preds:  redundant poses         -- [n, kp_num, 2]\n        cluster_scores: redundant poses score   -- [n, kp_num, 1]\n        ref_dist:       reference scale         -- Constant\n    OUTPUT:\n        final_pose:     merged pose             -- [kp_num, 2]\n        final_score:    merged score            -- [kp_num]\n    '
-    dist = np.sqrt(np.sum(axis=2))
+    dist = jt.sqrt(jt.sum(dim=2))
     kp_num = ref_pose.shape[0]
     ref_dist = min(ref_dist, 15)
     mask = (dist <= ref_dist)
-    final_pose = np.zeros((kp_num, 2))
-    final_score = np.zeros(kp_num)
+    final_pose = jt.zeros((kp_num, 2))
+    final_score = jt.zeros(kp_num)
     if (cluster_preds.ndim == 2):
         cluster_preds.unsqueeze(0)
         cluster_scores.unsqueeze(0)
@@ -346,84 +374,84 @@ def p_merge(ref_pose, cluster_preds, cluster_scores, ref_dist):
         mask.unsqueeze(0)
     for i in range(kp_num):
         cluster_joint_scores = cluster_scores[:, i][mask[:, i]]
-        cluster_joint_location = cluster_preds[:, i, :][mask[:, i].unsqueeze((- 1)).repeat(1, 2)].view((np.sum(mask[:, i]), (- 1)))
-        normed_scores = (cluster_joint_scores / np.sum(cluster_joint_scores))
-        final_pose[(i, 0)] = np.dot(cluster_joint_location[:, 0], normed_scores.squeeze((- 1)))
-        final_pose[(i, 1)] = np.dot(cluster_joint_location[:, 1], normed_scores.squeeze((- 1)))
-        final_score[i] = np.dot(cluster_joint_scores.transpose(0, 1).squeeze(0), normed_scores.squeeze((- 1)))
+        cluster_joint_location = cluster_preds[:, i, :][mask[:, i].unsqueeze((- 1)).repeat(1, 2)].view((jt.sum(mask[:, i]), (- 1)))
+        normed_scores = (cluster_joint_scores / jt.sum(cluster_joint_scores))
+        final_pose[(i, 0)] = jt.dot(cluster_joint_location[:, 0], normed_scores.squeeze((- 1)))
+        final_pose[(i, 1)] = jt.dot(cluster_joint_location[:, 1], normed_scores.squeeze((- 1)))
+        final_score[i] = jt.dot(cluster_joint_scores.transpose(0, 1).squeeze(0), normed_scores.squeeze((- 1)))
     return (final_pose, final_score)
 
-def p_merge_fast(ref_pose: np.ndarray,
-                 cluster_preds: np.ndarray,
-                 cluster_scores: np.ndarray,
+def p_merge_fast(ref_pose: jt.Var,
+                 cluster_preds: jt.Var,
+                 cluster_scores: jt.Var,
                  ref_dist: float):
     '\n    Score-weighted pose merging\n    INPUT:\n        ref_pose:       reference pose          -- [kp_num, 2]\n        cluster_preds:  redundant poses         -- [n, kp_num, 2]\n        cluster_scores: redundant poses score   -- [n, kp_num, 1]\n        ref_dist:       reference scale         -- Constant\n    OUTPUT:\n        final_pose:     merged pose             -- [kp_num, 2]\n        final_score:    merged score            -- [kp_num]\n    '
-    dist = np.sqrt(np.sum(np.power(ref_pose[np.newaxis, :] - cluster_preds, 2), axis=2))
+    dist = jt.sqrt(jt.sum(jt.pow(ref_pose[np.newaxis, :] - cluster_preds, 2), dim=2))
     kp_num = ref_pose.shape[0]
     ref_dist = min(ref_dist, 15)
     mask = (dist <= ref_dist)
-    final_pose = np.zeros((kp_num, 2))
-    final_score = np.zeros(kp_num)
+    final_pose = jt.zeros((kp_num, 2))
+    final_score = jt.zeros(kp_num)
     if (cluster_preds.ndim == 2):
-        cluster_preds = cluster_preds[None, ...]
-        cluster_scores = cluster_scores[None, ...]
+        cluster_preds.unsqueeze(0)
+        cluster_scores.unsqueeze(0)
     if (mask.ndim == 1):
-        mask = mask[..., None]
-    masked_scores = cluster_scores * (mask[..., None])
-    normed_scores = (masked_scores / np.sum(masked_scores, axis=0))
-    final_pose = (cluster_preds * normed_scores.repeat(2, 2)).sum(axis=0)
-    final_score = (masked_scores * normed_scores).sum(axis=0)
+        mask.unsqueeze(0)
+    masked_scores = cluster_scores * (mask.float().unsqueeze((- 1)))
+    normed_scores = (masked_scores / jt.sum(masked_scores, dim=0))
+    final_pose = (cluster_preds * normed_scores.repeat(1, 1, 2)).sum(dim=0)
+    final_score = (masked_scores * normed_scores).sum(dim=0)
     return (final_pose, final_score)
 
 def get_parametric_distance(i: int,
-                            all_preds: np.ndarray,
-                            keypoint_scores: np.ndarray,
+                            all_preds: jt.Var,
+                            keypoint_scores: jt.Var,
                             ref_dist: float,
-                            use_dist_mask: bool=False) -> np.ndarray:
+                            use_dist_mask: bool=False) -> jt.Var:
     pick_preds = all_preds[i]
     pred_scores = keypoint_scores[i]
-    dist = np.sqrt(np.sum(np.power(pick_preds[None, :] - all_preds, 2), axis=2))
+    dist = jt.sqrt(jt.sum(jt.pow(pick_preds[None, :] - all_preds, 2), dim=2))
     mask = (dist <= 1)
     kp_nums = all_preds.shape[1]
     if use_dist_mask:
         dist_mask = (keypoint_scores.reshape(((- 1), kp_nums)) < scoreThreds)
         mask = (mask * dist_mask)
-    score_dists = np.zeros((all_preds.shape[0], kp_nums))
-    keypoint_scores = keypoint_scores.squeeze()
+    score_dists = jt.zeros((all_preds.shape[0], kp_nums))
+    keypoint_scores = keypoint_scores.squeeze(-1)
     if (keypoint_scores.ndim == 1):
-        keypoint_scores = keypoint_scores[None]
+        keypoint_scores.unsqueeze(0)
     if (pred_scores.ndim == 1):
-        pred_scores = pred_scores[:, None]
-    pred_scores = pred_scores.repeat(all_preds.shape[0], 1).transpose(1, 0)
-    score_dists[mask] = (np.tanh((pred_scores[mask] / delta1)) * np.tanh((keypoint_scores[mask] / delta1)))
-    point_dist = np.exp((((- 1) * dist) / delta2))
+        pred_scores.unsqueeze(1)
+    pred_scores = pred_scores.repeat(1, all_preds.shape[0]).transpose(0, 1)
+    score_dists[mask] = (jt.tanh((pred_scores[mask] / delta1)) * jt.tanh((keypoint_scores[mask] / delta1)))
+    point_dist = jt.exp((((- 1) * dist) / delta2))
     if use_dist_mask:
-        point_dist[:, (- 110):(- 42)] = np.exp((((- 1) * dist[:, (- 110):(- 42)]) / (delta2 * face_factor)))
-        point_dist[:, (- 42):] = np.exp((((- 1) * dist[:, (- 42):]) / (delta2 * hand_factor)))
+        point_dist[:, (- 110):(- 42)] = jt.exp((((- 1) * dist[:, (- 110):(- 42)]) / (delta2 * face_factor)))
+        point_dist[:, (- 42):] = jt.exp((((- 1) * dist[:, (- 42):]) / (delta2 * hand_factor)))
         point_dist[dist_mask] = 0
-        final_dist = (((np.mean(score_dists[:, :(- 110)], axis=1) + (np.mean(score_dists[:, (- 110):(- 42)], axis=1) * face_weight_score)) + (np.mean(score_dists[:, (- 42):], axis=1) * hand_weight_score)) + (mu * ((np.mean(point_dist[:, :(- 110)], axis=1) + (np.mean(point_dist[:, (- 110):(- 42)], axis=1) * face_weight_dist)) + (np.mean(point_dist[:, (- 42):], axis=1) * hand_weight_dist))))
+        final_dist = (((jt.mean(score_dists[:, :(- 110)], dim=1) + (jt.mean(score_dists[:, (- 110):(- 42)], dim=1) * face_weight_score)) + (jt.mean(score_dists[:, (- 42):], dim=1) * hand_weight_score)) + (mu * ((jt.mean(point_dist[:, :(- 110)], dim=1) + (jt.mean(point_dist[:, (- 110):(- 42)], dim=1) * face_weight_dist)) + (jt.mean(point_dist[:, (- 42):], dim=1) * hand_weight_dist))))
     else:
-        final_dist = (np.sum(score_dists, axis=1) + (mu * np.sum(point_dist, axis=1)))
+        final_dist = (jt.sum(score_dists, dim=1) + (mu * jt.sum(point_dist, dim=1)))
     return final_dist
 
-def PCK_match(pick_pred: np.ndarray,
-              all_preds: np.ndarray,
-              ref_dist: float) -> np.ndarray:
-    dist = np.sqrt(np.sum(np.power(pick_pred[np.newaxis, :] - all_preds, 2), axis=2))
+def PCK_match(pick_pred: jt.Var,
+              all_preds: jt.Var,
+              ref_dist: float) -> jt.Var:
+    dist = jt.sqrt(jt.sum(jt.pow(pick_pred[np.newaxis, :] - all_preds, 2), dim=2))
     ref_dist = min(ref_dist, 7)
-    num_match_keypoints = np.sum(((dist / ref_dist) <= 1), axis=1)
+    num_match_keypoints = jt.sum(((dist / ref_dist) <= 1), dim=1)
     return num_match_keypoints
 
 def PCK_match_fullbody(pick_pred, pred_score, all_preds, ref_dist):
     kp_nums = pred_score.shape[0]
     mask = (pred_score.reshape((1, kp_nums, 1)).repeat(all_preds.shape[0], 1, 2) > (scoreThreds / 2)).float()
     if (mask.sum() < 2):
-        return np.zeros(all_preds.shape[0])
-    dist = np.sqrt(np.sum(np.power(pick_pred[np.newaxis, :] - all_preds, 2), axis=2))
+        return jt.zeros(all_preds.shape[0])
+    dist = jt.sqrt(jt.sum(jt.pow(pick_pred[np.newaxis, :] - all_preds, 2), dim=2))
     ref_dist = min(ref_dist, 7)
-    num_match_keypoints_body = np.sum(((dist[:, :26] / ref_dist) <= 1), axis=1)
-    num_match_keypoints_face = np.sum(((dist[:, 26:94] / ref_dist) <= face_factor), axis=1)
-    num_match_keypoints_hand = np.sum(((dist[:, 94:] / ref_dist) <= hand_factor), axis=1)
+    num_match_keypoints_body = jt.sum(((dist[:, :26] / ref_dist) <= 1), dim=1)
+    num_match_keypoints_face = jt.sum(((dist[:, 26:94] / ref_dist) <= face_factor), dim=1)
+    num_match_keypoints_hand = jt.sum(((dist[:, 94:] / ref_dist) <= hand_factor), dim=1)
     num_match_keypoints = (((((num_match_keypoints_body + num_match_keypoints_face) + num_match_keypoints_hand) / mask.sum()) / 2) * kp_nums)
     return num_match_keypoints
 
@@ -454,10 +482,10 @@ def write_json(all_results, outputpath, form=None, for_eval=False, outputfile='a
                 result['box'] = human['box']
             if ('idx' in human.keys()):
                 result['idx'] = human['idx']
-            if ('pred_xyz_nps' in human.keys()):
-                pred_xyz_nps = human['pred_xyz_nps']
-                pred_xyz_nps = pred_xyz_nps.numpy().tolist()
-                result['pred_xyz_nps'] = pred_xyz_nps
+            if ('pred_xyz_jts' in human.keys()):
+                pred_xyz_jts = human['pred_xyz_jts']
+                pred_xyz_jts = pred_xyz_jts.numpy().tolist()
+                result['pred_xyz_jts'] = pred_xyz_jts
             if (form == 'cmu'):
                 if (result['image_id'] not in json_results_cmu.keys()):
                     json_results_cmu[result['image_id']] = {}
@@ -532,14 +560,14 @@ def ppose_nms_validate_preprocess(_res):
             p_scores = kpts[:, 2]
             s = ((pose['score'] - np.mean(p_scores)) - (1.25 * np.max(p_scores)))
             scores.append(s)
-            pose_coords.append(np.from_numpy(coords).unsqueeze(0))
-            pose_scores.append(np.from_numpy(p_scores).unsqueeze(0))
+            pose_coords.append(jt.from_numpy(coords).unsqueeze(0))
+            pose_scores.append(jt.from_numpy(p_scores).unsqueeze(0))
             ids.append(i)
             i += 1
-        preds_img = np.contrib.concat(pose_coords)
-        preds_scores = np.contrib.concat(pose_scores)[:, :, None]
-        boxes = np.array(np.array(bboxes, dtype=np.float32))
-        scores = np.array(np.array(scores, dtype=np.float32).reshape((- 1), 1))
-        ids = np.array(np.array(ids, dtype=np.float32).reshape((- 1), 1))
+        preds_img = jt.contrib.concat(pose_coords)
+        preds_scores = jt.contrib.concat(pose_scores)[:, :, None]
+        boxes = jt.array(np.array(bboxes, dtype=np.float32))
+        scores = jt.array(np.array(scores, dtype=np.float32).reshape((- 1), 1))
+        ids = jt.array(np.array(ids, dtype=np.float32).reshape((- 1), 1))
         _tmp_data[key] = (boxes, scores, ids, preds_img, preds_scores)
     return _tmp_data

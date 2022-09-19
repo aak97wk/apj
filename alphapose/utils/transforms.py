@@ -310,12 +310,6 @@ def flip_joints_3d(joints_3d, width, joint_pairs):
 def heatmap_to_coord_simple(hms, bbox, hms_flip=None, **kwargs):
     if (hms_flip is not None):
         hms = ((hms + hms_flip) / 2)
-    if (not isinstance(hms, np.ndarray)):
-        # hms = hms.numpy() # TODO
-        try:
-            hms = hms.numpy() # tycoer
-        except:
-            a=1
     (coords, maxvals) = get_max_pred(hms)
     hm_h = hms.shape[1]
     hm_w = hms.shape[2]
@@ -340,7 +334,8 @@ def heatmap_to_coord_simple_regress(preds, bbox, hm_shape, norm_type, hms_flip=N
 
     def integral_op(hm_1d):
         if (hm_1d.device.index is not None):
-            hm_1d = (hm_1d * torch.cuda.comm.broadcast(jt.arange(hm_1d.shape[(- 1)]).astype(jt.float32), devices=[hm_1d.device.index])[0])
+            # hm_1d = (hm_1d * torch.cuda.comm.broadcast(jt.arange(hm_1d.shape[(- 1)]).astype(jt.float32), devices=[hm_1d.device.index])[0])
+            hm_1d = hm_1d * jt.arange(hm_1d.shape[(- 1)]).astype(jt.float32)  # tycoer
         else:
             hm_1d = (hm_1d * jt.arange(hm_1d.shape[(- 1)]).astype(jt.float32))
         return hm_1d

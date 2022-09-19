@@ -179,7 +179,10 @@ class DetectionLoader():
                 for pad_i in range((self.batchSize - len(imgs))):
                     imgs = jt.contrib.concat((imgs, jt.unsqueeze(imgs[0], dim=0)), dim=0)
                     im_dim_list = jt.contrib.concat((im_dim_list, jt.unsqueeze(im_dim_list[0], dim=0)), dim=0)
-                dets = self.detector.images_detection(imgs, im_dim_list)
+                try: # todo
+                    dets = self.detector.images_detection(imgs, im_dim_list)
+                except:
+                    a = 1
                 if (isinstance(dets, int) or (dets.shape[0] == 0)):
                     for k in range(len(orig_imgs)):
                         self.wait_and_put(self.det_queue, (orig_imgs[k], im_names[k], None, None, None, None, None))

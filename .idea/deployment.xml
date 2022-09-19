@@ -37,6 +37,13 @@
           </mappings>
         </serverdata>
       </paths>
+      <paths name="Copy of project-level server '20200' (1)">
+        <serverdata>
+          <mappings>
+            <mapping local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
       <paths name="robot01_ttt">
         <serverdata>
           <mappings>
@@ -54,7 +61,7 @@
       <paths name="robot02_ttt">
         <serverdata>
           <mappings>
-            <mapping deploy="/home/hanyang/jittor" local="$PROJECT_DIR$" web="/" />
+            <mapping deploy="/home/hanyang/AlphaPose_jittor" local="$PROJECT_DIR$" web="/" />
           </mappings>
         </serverdata>
       </paths>

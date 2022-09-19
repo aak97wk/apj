@@ -75,6 +75,22 @@ class DataWriter():
             assert stream.isOpened(), 'Cannot open video for writing'
         while True:
             (boxes, scores, ids, hm_data, cropped_boxes, orig_img, im_name) = self.wait_and_get(self.result_queue)
+
+            # tycoer
+            if isinstance(boxes, jt.Var):
+                boxes = boxes.numpy()
+            if isinstance(scores, jt.Var):
+                scores = scores.numpy()
+            if isinstance(ids, jt.Var):
+                ids = ids.numpy()
+            if isinstance(hm_data, jt.Var):
+                try:
+                    hm_data = hm_data.float().numpy()
+                except:
+                    a = 1
+            if isinstance(cropped_boxes, jt.Var):
+                cropped_boxes = cropped_boxes.numpy()
+
             if (orig_img is None):
                 if self.save_video:
                     stream.release()
@@ -102,10 +118,7 @@ class DataWriter():
                 pose_coords = []
                 pose_scores = []
                 for i in range(hm_data.shape[0]):
-                    try:
-                        bbox = cropped_boxes[i].tolist()
-                    except:
-                        a = 1
+                    bbox = cropped_boxes[i].tolist()
                     if isinstance(self.heatmap_to_coord, list):
                         (pose_coords_body_foot, pose_scores_body_foot) = self.heatmap_to_coord[0](hm_data[i][self.eval_joints[:(- face_hand_num)]], bbox, hm_shape=hm_size, norm_type=norm_type)
                         (pose_coords_face_hand, pose_scores_face_hand) = self.heatmap_to_coord[1](hm_data[i][self.eval_joints[(- face_hand_num):]], bbox, hm_shape=hm_size, norm_type=norm_type)
@@ -113,15 +126,28 @@ class DataWriter():
                         pose_score = np.concatenate((pose_scores_body_foot, pose_scores_face_hand), axis=0)
                     else:
                         (pose_coord, pose_score) = self.heatmap_to_coord(hm_data[i][self.eval_joints], bbox, hm_shape=hm_size, norm_type=norm_type)
-                    pose_coords.append(jt.array(pose_coord).unsqueeze(0))
-                    pose_scores.append(jt.array(pose_score).unsqueeze(0))
-                preds_img = jt.contrib.concat(pose_coords)
-                preds_scores = jt.contrib.concat(pose_scores)
+                    # pose_coords.append(jt.array(pose_coord).unsqueeze(0))
+                    # pose_scores.append(jt.array(pose_score).unsqueeze(0))
+                    # tycoer
+                    pose_coords.append(pose_coord)
+                    pose_scores.append(pose_score)
+                # tycoer
+                preds_img = np.float32(pose_coords)
+                preds_scores = np.float32(pose_scores)
+                # preds_img = jt.contrib.concat(pose_coords)
+                # preds_scores = jt.contrib.concat(pose_scores)
+
                 if (not self.opt.pose_track):
                     (boxes, scores, ids, preds_img, preds_scores, pick_ids) = pose_nms(boxes, scores, ids, preds_img, preds_scores, self.opt.min_box_area, use_heatmap_loss=self.use_heatmap_loss)
                 _result = []
                 for k in range(len(scores)):
                     _result.append({'keypoints': preds_img[k], 'kp_score': preds_scores[k], 'proposal_score': ((jt.mean(preds_scores[k]) + scores[k]) + (1.25 * max(preds_scores[k]))), 'idx': ids[k], 'box': [boxes[k][0], boxes[k][1], (boxes[k][2] - boxes[k][0]), (boxes[k][3] - boxes[k][1])]})
+                    # _result.append({'keypoints': preds_img[k].numpy(),
+                    #                 'kp_score': preds_scores[k].numpy(),
+                    #                 'proposal_score': ((jt.mean(preds_scores[k]) + scores[k]) + (1.25 * max(preds_scores[k]))).numpy(),
+                    #                 'idx': ids[k],
+                    #                 'box': [boxes[k][0], boxes[k][1], (boxes[k][2] - boxes[k][0]), (boxes[k][3] - boxes[k][1])]})
+
                 result = {'imgname': im_name, 'result': _result}
                 if self.opt.pose_flow:
                     poseflow_result = self.pose_flow_wrapper.step(orig_img, result)

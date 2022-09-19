@@ -1,12 +1,13 @@
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 import jittor as jt
 from jittor import init
 from jittor import nn
 'Script for single-gpu/multi-gpu demo.'
 import argparse
-import os
 import platform
-import sys
 import time
 import numpy as np
 from tqdm import tqdm
@@ -23,8 +24,7 @@ from alphapose.utils.transforms import flip, flip_heatmap
 from alphapose.utils.vis import getTime
 from alphapose.utils.webcam_detector import WebCamDetectionLoader
 from alphapose.utils.writer_smpl import DataWriterSMPL
-import sys
-sys.path.insert(0, '../..')
+
 '----------------------------- Demo options -----------------------------'
 parser = argparse.ArgumentParser(description='AlphaPose Demo')
 parser.add_argument('--cfg', type=str, required=True, help='experiment configure file name')

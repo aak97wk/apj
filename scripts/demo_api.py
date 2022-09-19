@@ -1,12 +1,12 @@
-
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import jittor as jt
 from jittor import init
 from jittor import nn
 'Script for single-image demo.'
 import argparse
-import os
 import platform
-import sys
 import math
 import time
 import cv2
@@ -20,8 +20,6 @@ from alphapose.utils.config import update_config
 from detector.apis import get_detector
 from alphapose.utils.vis import getTime
 
-import sys
-sys.path.insert(0, '../..')
 
 '----------------------------- Demo options -----------------------------'
 parser = argparse.ArgumentParser(description='AlphaPose Single-Image Demo')
@@ -50,7 +48,6 @@ args.gpus = ([int(args.gpus[0])] if (jt.get_device_count() >= 1) else [(- 1)])
 args.tracking = (args.pose_track or args.pose_flow or (args.detector == 'tracker'))
 
 class DetectionLoader():
-
     def __init__(self, detector, cfg, opt):
         self.cfg = cfg
         self.opt = opt

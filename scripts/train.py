@@ -1,13 +1,10 @@
-
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import jittor as jt
 from jittor import init
 'Script for multi-gpu training.'
 import json
-import os
-
-# os.environ['JT_SYNC'] = '1'
-# os.environ['trace_py_var'] = '3'
-import sys
 import numpy as np
 from jittor import nn
 from tensorboardX import SummaryWriter
@@ -17,9 +14,7 @@ from alphapose.opt import cfg, logger, opt
 from alphapose.utils.logger import board_writing, debug_writing
 from alphapose.utils.metrics import DataLogger, calc_accuracy, calc_integral_accuracy, evaluate_mAP
 from alphapose.utils.transforms import get_func_heatmap_to_coord
-# tycoer
-import sys
-sys.path.insert(0, '../..')
+
 
 assert opt.nThreads == 0, 'AlphaPose_jittor only support nThreads is 0.'
 assert opt.sync == False, 'As nn.SyncBatchNorm is not implemented in Jittor, "sync" is not supportted for AlphaPose_jittor'

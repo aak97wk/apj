@@ -46,6 +46,11 @@ class SimpleTransform3DSMPL(object):
             self.lower_body_ids = dataset.lower_body_ids
 
     def test_transform(self, src, bbox):
+        # tycoer
+        if isinstance(bbox, jt.Var):
+            bbox: jt.Var
+            bbox = bbox.numpy()
+
         if isinstance(src, str):
             import scipy.misc
             src = scipy.misc.imread(src, mode='RGB')

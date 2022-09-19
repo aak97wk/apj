@@ -116,7 +116,10 @@ class YOLODetector(BaseDetector):
             max_conf_score = max_conf_score.float().unsqueeze(1)
             seq = (image_pred[:, :5], max_conf, max_conf_score)
             image_pred = jt.contrib.concat(seq, dim=1)
-            non_zero_ind = jt.nonzero(image_pred[:, 4])
+            try: # TODO
+                non_zero_ind = jt.nonzero(image_pred[:, 4])
+            except:
+                print('yolo_api.py')
             image_pred_ = image_pred[non_zero_ind.squeeze(-1), :].view(((- 1), 7))
             try:
                 img_classes = unique(image_pred_[:, (- 1)])
@@ -126,7 +129,10 @@ class YOLODetector(BaseDetector):
                 if (cls != 0):
                     continue
                 cls_mask = (image_pred_ * (image_pred_[:, (- 1)] == cls).float().unsqueeze(1))
-                class_mask_ind = jt.nonzero(cls_mask[:, (- 2)]).squeeze(-1)
+                try: # TODO
+                    class_mask_ind = jt.nonzero(cls_mask[:, (- 2)]).squeeze(-1)
+                except:
+                    a = 1
                 image_pred_class = image_pred_[class_mask_ind].view(((- 1), 7))
                 conf_sort_index = jt.argsort(image_pred_class[:, 4], descending=True)[0]
                 image_pred_class = image_pred_class[conf_sort_index]

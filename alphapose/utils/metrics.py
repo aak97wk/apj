@@ -116,7 +116,8 @@ def calc_integral_accuracy(preds, labels, label_masks, output_3d=False, norm_typ
     'Calculate integral coordinates accuracy.'
 
     def integral_op(hm_1d):
-        hm_1d = (hm_1d * torch.cuda.comm.broadcast(jt.arange(hm_1d.shape[(- 1)]).astype(jt.float32), devices=[hm_1d.device.index])[0])
+        # hm_1d = (hm_1d * torch.cuda.comm.broadcast(jt.arange(hm_1d.shape[(- 1)]).astype(jt.float32), devices=[hm_1d.device.index])[0])
+        hm_1d = hm_1d * jt.arange(hm_1d.shape[(- 1)]).astype(jt.float32) # tycoer
         return hm_1d
     preds = preds.detach()
     hm_width = preds.shape[(- 1)]

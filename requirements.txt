@@ -1,4 +1,7 @@
+# tycoer
 jittor
+cython-bbox
+
 six
 terminaltables
 scipy

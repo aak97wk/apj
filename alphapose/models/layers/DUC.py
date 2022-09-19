@@ -14,6 +14,7 @@ class DUC(nn.Module):
         self.pixel_shuffle = nn.PixelShuffle(upscale_factor)
 
     def execute(self, x):
+        print('DUC.py', x.shape) # todo
         x = self.conv(x)
         x = self.bn(x)
         x = nn.relu(x)
