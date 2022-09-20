@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" autoUpload="Always" serverName="robot02_ttt">
+  <component name="PublishConfigData" autoUpload="Always" serverName="robot01_ttt">
     <serverData>
       <paths name="20200">
         <serverdata>
@@ -47,7 +47,7 @@
       <paths name="robot01_ttt">
         <serverdata>
           <mappings>
-            <mapping local="$PROJECT_DIR$" web="/" />
+            <mapping deploy="/home/hanyang/AlphaPose_jittor" local="$PROJECT_DIR$" />
           </mappings>
         </serverdata>
       </paths>

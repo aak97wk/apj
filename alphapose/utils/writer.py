@@ -84,10 +84,7 @@ class DataWriter():
             if isinstance(ids, jt.Var):
                 ids = ids.numpy()
             if isinstance(hm_data, jt.Var):
-                try:
-                    hm_data = hm_data.float().numpy()
-                except:
-                    a = 1
+                hm_data = hm_data.numpy()
             if isinstance(cropped_boxes, jt.Var):
                 cropped_boxes = cropped_boxes.numpy()
 

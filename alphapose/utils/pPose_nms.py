@@ -194,7 +194,7 @@ def pose_nms_body(bboxes: np.ndarray,
         delete_ids = (np.arange(human_scores[tensor_mask].shape[0]))[((simi > gamma) | (num_match_keypoints >= matchThreds))]
         if (delete_ids.shape[0] == 0):
             delete_ids = pick_id
-        merge_ids.append(human_ids[mask][delete_ids].item())
+        merge_ids.append(human_ids[mask][delete_ids])
         newmask = mask [mask]
         newmask[delete_ids] = False
         mask[mask] = newmask

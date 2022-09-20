@@ -20,7 +20,6 @@ from alphapose.utils.config import update_config
 from detector.apis import get_detector
 from alphapose.utils.vis import getTime
 
-
 '----------------------------- Demo options -----------------------------'
 parser = argparse.ArgumentParser(description='AlphaPose Single-Image Demo')
 parser.add_argument('--cfg', type=str, required=True, help='experiment configure file name')
@@ -35,9 +34,12 @@ parser.add_argument('--format', type=str, help='save in the format of cmu or coc
 parser.add_argument('--min_box_area', type=int, default=0, help='min box area to filter out')
 parser.add_argument('--eval', dest='eval', default=False, action='store_true', help='save the result json as coco format, using image index(int) instead of image name(str)')
 parser.add_argument('--gpus', type=str, dest='gpus', default='0', help='choose which cuda device to use by index and input comma to use multi gpus, e.g. 0,1,2,3. (input -1 for cpu only)')
+# parser.add_argument('--gpus', action='store_true')
 parser.add_argument('--flip', default=False, action='store_true', help='enable flip testing')
 parser.add_argument('--debug', default=False, action='store_true', help='print detail information')
 parser.add_argument('--vis_fast', dest='vis_fast', help='use fast rendering', action='store_true', default=False)
+
+parser.add_argument('--video', default='', type=str)
 '----------------------------- Tracking options -----------------------------'
 parser.add_argument('--pose_flow', dest='pose_flow', help='track humans in video with PoseFlow', action='store_true', default=False)
 parser.add_argument('--pose_track', dest='pose_track', help='track humans in video with reid', action='store_true', default=False)
@@ -47,18 +49,29 @@ args.gpus = ([int(args.gpus[0])] if (jt.get_device_count() >= 1) else [(- 1)])
 # args.device = torch.device((('cuda:' + str(args.gpus[0])) if (args.gpus[0] >= 0) else 'cpu'))
 args.tracking = (args.pose_track or args.pose_flow or (args.detector == 'tracker'))
 
+# tycoer
+if jt.has_cuda and args.gpus:
+    jt.flags.use_cuda = 1
+else:
+    jt.flags.use_cuda = 0
+
+
 class DetectionLoader():
     def __init__(self, detector, cfg, opt):
         self.cfg = cfg
         self.opt = opt
-        self.device = opt.device
+        # self.device = opt.device
+        self.device = None
         self.detector = detector
         self._input_size = cfg.DATA_PRESET.IMAGE_SIZE
         self._output_size = cfg.DATA_PRESET.HEATMAP_SIZE
         self._sigma = cfg.DATA_PRESET.SIGMA
         if (cfg.DATA_PRESET.TYPE == 'simple'):
             pose_dataset = builder.retrieve_dataset(self.cfg.DATASET.TRAIN)
-            self.transformation = SimpleTransform(pose_dataset, scale_factor=0, input_size=self._input_size, output_size=self._output_size, rot=0, sigma=self._sigma, train=False, add_dpg=False, gpu_device=self.device)
+            self.transformation = SimpleTransform(pose_dataset, scale_factor=0, input_size=self._input_size, output_size=self._output_size, rot=0, sigma=self._sigma,
+                                                  train=False, add_dpg=False,
+                                                  gpu_device=self.device
+                                                  )
         elif (cfg.DATA_PRESET.TYPE == 'simple_smpl'):
             from easydict import EasyDict as edict
             dummpy_set = edict({'joint_pairs_17': None, 'joint_pairs_24': None, 'joint_pairs_29': None, 'bbox_3d_shape': (2.2, 2.2, 2.2)})
@@ -83,7 +96,7 @@ class DetectionLoader():
         im_dim = (orig_img.shape[1], orig_img.shape[0])
         im_name = os.path.basename(im_name)
         with jt.no_grad():
-            im_dim = jt.float32(im_dim).repeat(1, 2)
+            im_dim = jt.array(im_dim).repeat(1, 2)
         self.image = (img, orig_img, im_name, im_dim)
 
     def image_detection(self):
@@ -156,6 +169,18 @@ class DataWriter():
         norm_type = self.cfg.LOSS.get('NORM_TYPE', None)
         hm_size = self.cfg.DATA_PRESET.HEATMAP_SIZE
         (boxes, scores, ids, hm_data, cropped_boxes, orig_img, im_name) = self.item
+        # tycoer
+        if isinstance(boxes, jt.Var):
+            boxes = boxes.numpy()
+        if isinstance(scores, jt.Var):
+            scores = scores.numpy()
+        if isinstance(ids, jt.Var):
+            ids = ids.numpy()
+        if isinstance(hm_data, jt.Var):
+            hm_data = hm_data.numpy()
+        if isinstance(cropped_boxes, jt.Var):
+            cropped_boxes = cropped_boxes.numpy()
+
         if (orig_img is None):
             return None
         orig_img = np.array(orig_img, dtype=np.uint8)[:, :, ::(- 1)]
@@ -181,14 +206,14 @@ class DataWriter():
                     pose_score = np.concatenate((pose_scores_body_foot, pose_scores_face_hand), axis=0)
                 else:
                     (pose_coord, pose_score) = self.heatmap_to_coord(hm_data[i][self.eval_joints], bbox, hm_shape=hm_size, norm_type=norm_type)
-                pose_coords.append(jt.array(pose_coord).unsqueeze(0))
-                pose_scores.append(jt.array(pose_score).unsqueeze(0))
-            preds_img = jt.contrib.concat(pose_coords)
-            preds_scores = jt.contrib.concat(pose_scores)
+                pose_coords.append(pose_coord)
+                pose_scores.append(pose_score)
+            preds_img = np.float32(pose_coords)
+            preds_scores = np.float32(pose_scores)
             (boxes, scores, ids, preds_img, preds_scores, pick_ids) = pose_nms(boxes, scores, ids, preds_img, preds_scores, self.opt.min_box_area, use_heatmap_loss=self.use_heatmap_loss)
             _result = []
             for k in range(len(scores)):
-                _result.append({'keypoints': preds_img[k], 'kp_score': preds_scores[k], 'proposal_score': ((torch.mean(preds_scores[k]) + scores[k]) + (1.25 * max(preds_scores[k]))), 'idx': ids[k], 'bbox': [boxes[k][0], boxes[k][1], (boxes[k][2] - boxes[k][0]), (boxes[k][3] - boxes[k][1])]})
+                _result.append({'keypoints': preds_img[k], 'kp_score': preds_scores[k], 'proposal_score': ((np.mean(preds_scores[k]) + scores[k]) + (1.25 * max(preds_scores[k]))), 'idx': ids[k], 'bbox': [boxes[k][0], boxes[k][1], (boxes[k][2] - boxes[k][0]), (boxes[k][3] - boxes[k][1])]})
             result = {'imgname': im_name, 'result': _result}
             if (hm_data.shape[1] == 49):
                 from alphapose.utils.vis import vis_frame_dense as vis_frame
@@ -219,54 +244,44 @@ class SingleImageAlphaPose():
         self.writer = DataWriter(self.cfg, self.args)
         runtime_profile = {'dt': [], 'pt': [], 'pn': []}
         pose = None
-        try:
-            start_time = getTime()
-            with jt.no_grad():
-                (inps, orig_img, im_name, boxes, scores, ids, cropped_boxes) = self.det_loader.process(im_name, image).read()
-                if (orig_img is None):
-                    raise Exception('no image is given')
-                if ((boxes is None) or (len(boxes) == 0)):
-                    if self.args.profile:
-                        (ckpt_time, det_time) = getTime(start_time)
-                        runtime_profile['dt'].append(det_time)
-                    self.writer.save(None, None, None, None, None, orig_img, im_name)
-                    if self.args.profile:
-                        (ckpt_time, pose_time) = getTime(ckpt_time)
-                        runtime_profile['pt'].append(pose_time)
-                    pose = self.writer.start()
-                    if self.args.profile:
-                        (ckpt_time, post_time) = getTime(ckpt_time)
-                        runtime_profile['pn'].append(post_time)
-                else:
-                    if self.args.profile:
-                        (ckpt_time, det_time) = getTime(start_time)
-                        runtime_profile['dt'].append(det_time)
-                    # inps = inps.to(self.args.device)
-                    if self.args.flip:
-                        inps = jt.contrib.concat((inps, flip(inps)))
-                    hm = self.pose_model(inps)
-                    if self.args.flip:
-                        hm_flip = flip_heatmap(hm[int((len(hm) / 2)):], self.pose_dataset.joint_pairs, shift=True)
-                        hm = ((hm[0:int((len(hm) / 2))] + hm_flip) / 2)
-                    if self.args.profile:
-                        (ckpt_time, pose_time) = getTime(ckpt_time)
-                        runtime_profile['pt'].append(pose_time)
-                    hm = hm
-                    self.writer.save(boxes, scores, ids, hm, cropped_boxes, orig_img, im_name)
-                    pose = self.writer.start()
-                    if self.args.profile:
-                        (ckpt_time, post_time) = getTime(ckpt_time)
-                        runtime_profile['pn'].append(post_time)
-            if self.args.profile:
-                print('det time: {dt:.4f} | pose time: {pt:.4f} | post processing: {pn:.4f}'.format(dt=np.mean(runtime_profile['dt']), pt=np.mean(runtime_profile['pt']), pn=np.mean(runtime_profile['pn'])))
-            print('===========================> Finish Model Running.')
-        except Exception as e:
-            print(repr(e))
-            print('An error as above occurs when processing the images, please check it')
-            pass
-        except KeyboardInterrupt:
-            print('===========================> Finish Model Running.')
-        return pose
+        start_time = getTime()
+        with jt.no_grad():
+            (inps, orig_img, im_name, boxes, scores, ids, cropped_boxes) = self.det_loader.process(im_name, image).read()
+            if (orig_img is None):
+                raise Exception('no image is given')
+            if ((boxes is None) or (len(boxes) == 0)):
+                if self.args.profile:
+                    (ckpt_time, det_time) = getTime(start_time)
+                    runtime_profile['dt'].append(det_time)
+                self.writer.save(None, None, None, None, None, orig_img, im_name)
+                if self.args.profile:
+                    (ckpt_time, pose_time) = getTime(ckpt_time)
+                    runtime_profile['pt'].append(pose_time)
+                pose = self.writer.start()
+                if self.args.profile:
+                    (ckpt_time, post_time) = getTime(ckpt_time)
+                    runtime_profile['pn'].append(post_time)
+            else:
+                if self.args.profile:
+                    (ckpt_time, det_time) = getTime(start_time)
+                    runtime_profile['dt'].append(det_time)
+                # inps = inps.to(self.args.device)
+                if self.args.flip:
+                    inps = jt.contrib.concat((inps, flip(inps)))
+                hm = self.pose_model(inps)
+                if self.args.flip:
+                    hm_flip = flip_heatmap(hm[int((len(hm) / 2)):], self.pose_dataset.joint_pairs, shift=True)
+                    hm = ((hm[0:int((len(hm) / 2))] + hm_flip) / 2)
+                if self.args.profile:
+                    (ckpt_time, pose_time) = getTime(ckpt_time)
+                    runtime_profile['pt'].append(pose_time)
+                hm = hm
+                self.writer.save(boxes, scores, ids, hm, cropped_boxes, orig_img, im_name)
+                pose = self.writer.start()
+                if self.args.profile:
+                    (ckpt_time, post_time) = getTime(ckpt_time)
+                    runtime_profile['pn'].append(post_time)
+        return pose, runtime_profile
 
     def getImg(self):
         return self.writer.orig_img
@@ -279,7 +294,7 @@ class SingleImageAlphaPose():
     def writeJson(self, final_result, outputpath, form='coco', for_eval=False):
         from alphapose.utils.pPose_nms import write_json
         write_json(final_result, outputpath, form=form, for_eval=for_eval)
-        print('Results have been written to json.')
+        # print('Results have been written to json.')
 
 def example():
     outputpath = 'examples/res/'
@@ -288,12 +303,47 @@ def example():
     demo = SingleImageAlphaPose(args, cfg)
     im_name = args.inputimg
     image = cv2.cvtColor(cv2.imread(im_name), cv2.COLOR_BGR2RGB)
-    pose = demo.process(im_name, image)
+    pose, runtime_profile = demo.process(im_name, image)
     img = demo.getImg()
     img = demo.vis(img, pose)
     cv2.imwrite(os.path.join(outputpath, 'vis', os.path.basename(im_name)), img)
     result = [pose]
     demo.writeJson(result, outputpath, form=args.format, for_eval=args.eval)
+    if args.profile:
+        print('det time: {dt:.4f} | pose time: {pt:.4f} | post processing: {pn:.4f}'.format(dt=np.mean(runtime_profile['dt']), pt=np.mean(runtime_profile['pt']), pn=np.mean(runtime_profile['pn'])))
+        print('===========================> Finish Model Running.')
+
+
+def example_video():
+    from tqdm import tqdm
+    outputpath = 'examples/res/'
+    if (not os.path.exists((outputpath + '/vis'))):
+        os.mkdir((outputpath + '/vis'))
+    demo = SingleImageAlphaPose(args, cfg)
+    video_name = args.video
+    stream = cv2.VideoCapture(video_name)
+    bar = tqdm(range(int(stream.get(cv2.CAP_PROP_FRAME_COUNT))), ncols=150)
+    for i in bar:
+        (grabbed, frame) = stream.read()
+        im_name = f'{i}.png'
+        if grabbed:
+            image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            pose, runtime_profile = demo.process(im_name, image)
+            img = demo.getImg()
+            img = demo.vis(img, pose)
+            cv2.imwrite(os.path.join(outputpath, 'vis', os.path.basename(im_name)), img)
+            result = [pose]
+            if pose is not None:
+                demo.writeJson(result, outputpath, form=args.format, for_eval=args.eval)
+                if args.profile:
+                    bar.set_postfix_str('det time: {dt:.4f} | pose time: {pt:.4f} | post processing: {pn:.4f}'.format(
+                        dt=np.mean(runtime_profile['dt']),
+                        pt=np.mean(runtime_profile['pt']),
+                        pn=np.mean(runtime_profile['pn'])))
+                    bar.update()
 
 if (__name__ == '__main__'):
-    example()
+    if args.video != '':
+        example_video()
+    else:
+        example()
