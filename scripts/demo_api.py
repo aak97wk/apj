@@ -340,7 +340,6 @@ def example_video():
                         dt=np.mean(runtime_profile['dt']),
                         pt=np.mean(runtime_profile['pt']),
                         pn=np.mean(runtime_profile['pn'])))
-                    bar.update()
 
 if (__name__ == '__main__'):
     if args.video != '':
