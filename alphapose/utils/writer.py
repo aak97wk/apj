@@ -10,6 +10,7 @@ import cv2
 import numpy as np
 from alphapose.utils.transforms import get_func_heatmap_to_coord
 from alphapose.utils.pPose_nms import pose_nms, write_json
+import multiprocessing as mp
 DEFAULT_VIDEO_SAVE_OPT = {'savepath': 'examples/res/1.mp4', 'fourcc': cv2.VideoWriter_fourcc(*'mp4v'), 'fps': 25, 'frameSize': (640, 480)}
 EVAL_JOINTS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
 

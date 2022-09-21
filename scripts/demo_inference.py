@@ -23,6 +23,7 @@ from alphapose.utils.transforms import flip, flip_heatmap
 from alphapose.utils.vis import getTime
 from alphapose.utils.webcam_detector import WebCamDetectionLoader
 from alphapose.utils.writer import DataWriter
+import multiprocessing as mp
 
 '----------------------------- Demo options -----------------------------'
 parser = argparse.ArgumentParser(description='AlphaPose Demo')
@@ -67,19 +68,20 @@ if (platform.system() == 'Windows'):
 args.gpus = ([int(i) for i in args.gpus.split(',')] if (jt.get_device_count() >= 1) else [(- 1)])
 
 # tycoer
+if args.sp:
+    jt.flags.use_threading = True
 if jt.has_cuda and len(args.gpus) > 0:
     jt.flags.use_cuda = 1
 else:
     jt.flags.use_cuda = 0
-# jt.flags.use_cuda = 0
+assert args.sp, "Multi-process is not support for AlphaPose_jittor"
 
-# args.device = torch.device((('cuda:' + str(args.gpus[0])) if (args.gpus[0] >= 0) else 'cpu'))
 args.detbatch = (args.detbatch * len(args.gpus))
 args.posebatch = (args.posebatch * len(args.gpus))
 args.tracking = (args.pose_track or args.pose_flow or (args.detector == 'tracker'))
-# if (not args.sp):
-#     torch.multiprocessing.set_start_method('forkserver', force=True)
-#     torch.multiprocessing.set_sharing_strategy('file_system')
+
+if (not args.sp):
+    mp.set_start_method('forkserver', force=True)
 
 def check_input():
     if (args.webcam != (- 1)):
@@ -145,10 +147,6 @@ if (__name__ == '__main__'):
     pose_dataset = builder.retrieve_dataset(cfg.DATASET.TRAIN)
     if args.pose_track:
         tracker = Tracker(tcfg, args)
-    # if (len(args.gpus) > 1):
-    #     pose_model = torch.nn.DataParallel(pose_model, device_ids=args.gpus).to(args.device)
-    # else:
-    #     pose_model.to(args.device)
     pose_model.eval()
     runtime_profile = {'dt': [], 'pt': [], 'pn': []}
     queueSize = (2 if (mode == 'webcam') else args.qsize)
@@ -168,126 +166,73 @@ if (__name__ == '__main__'):
         im_names_desc = tqdm(loop())
     else:
         data_len = det_loader.length
-        im_names_desc = tqdm(range(data_len), dynamic_ncols=True)
+        im_names_desc = tqdm(range(data_len), ncols=150)
     batchSize = args.posebatch
     if args.flip:
         batchSize = int((batchSize / 2))
 
-    for i in im_names_desc:
-        start_time = getTime()
-        with jt.no_grad():
-            (inps, orig_img, im_name, boxes, scores, ids, cropped_boxes) = det_loader.read()
-            if (orig_img is None):
-                break
-            if ((boxes is None) or (len(boxes) == 0)):
-                writer.save(None, None, None, None, None, orig_img, im_name)
-                continue
+    try:
+        for i in im_names_desc:
+            start_time = getTime()
+            with jt.no_grad():
+                (inps, orig_img, im_name, boxes, scores, ids, cropped_boxes) = det_loader.read()
+                if (orig_img is None):
+                    break
+                if ((boxes is None) or (len(boxes) == 0)):
+                    writer.save(None, None, None, None, None, orig_img, im_name)
+                    continue
+                if args.profile:
+                    (ckpt_time, det_time) = getTime(start_time)
+                    runtime_profile['dt'].append(det_time)
+                # inps = inps.to(args.device)
+                datalen = inps.size(0)
+                leftover = 0
+                if (datalen % batchSize):
+                    leftover = 1
+                num_batches = ((datalen // batchSize) + leftover)
+                hm = []
+                for j in range(num_batches):
+                    inps_j = inps[(j * batchSize):min(((j + 1) * batchSize), datalen)]
+                    if args.flip:
+                        inps_j = jt.contrib.concat((inps_j, flip(inps_j)))
+                    hm_j = pose_model(inps_j)
+                    if args.flip:
+                        hm_j_flip = flip_heatmap(hm_j[int((len(hm_j) / 2)):], pose_dataset.joint_pairs, shift=True)
+                        hm_j = ((hm_j[0:int((len(hm_j) / 2))] + hm_j_flip) / 2)
+                    hm.append(hm_j)
+                hm = jt.contrib.concat(hm)
+                if args.profile:
+                    (ckpt_time, pose_time) = getTime(ckpt_time)
+                    runtime_profile['pt'].append(pose_time)
+                if args.pose_track:
+                    (boxes, scores, ids, hm, cropped_boxes) = track(tracker, args, orig_img, inps, boxes, hm, cropped_boxes, im_name, scores)
+                # hm = hm.cpu()
+                writer.save(boxes, scores, ids, hm, cropped_boxes, orig_img, im_name)
+                if args.profile:
+                    (ckpt_time, post_time) = getTime(ckpt_time)
+                    runtime_profile['pn'].append(post_time)
             if args.profile:
-                (ckpt_time, det_time) = getTime(start_time)
-                runtime_profile['dt'].append(det_time)
-        #     # inps = inps.to(args.device)
-            datalen = inps.size(0)
-            leftover = 0
-            if (datalen % batchSize):
-                leftover = 1
-            num_batches = ((datalen // batchSize) + leftover)
-            hm = []
-            for j in range(num_batches):
-                inps_j = inps[(j * batchSize):min(((j + 1) * batchSize), datalen)]
-                if args.flip:
-                    inps_j = jt.contrib.concat((inps_j, flip(inps_j)))
-                hm_j = pose_model(inps_j)
-                if args.flip:
-                    hm_j_flip = flip_heatmap(hm_j[int((len(hm_j) / 2)):], pose_dataset.joint_pairs, shift=True)
-                    hm_j = ((hm_j[0:int((len(hm_j) / 2))] + hm_j_flip) / 2)
-                hm.append(hm_j)
-            hm = jt.contrib.concat(hm)
-            if args.profile:
-                (ckpt_time, pose_time) = getTime(ckpt_time)
-                runtime_profile['pt'].append(pose_time)
-            if args.pose_track:
-                (boxes, scores, ids, hm, cropped_boxes) = track(tracker, args, orig_img, inps, boxes, hm, cropped_boxes, im_name, scores)
-            # hm = hm
-            writer.save(boxes, scores, ids, hm, cropped_boxes, orig_img, im_name)
-            if args.profile:
-                (ckpt_time, post_time) = getTime(ckpt_time)
-                runtime_profile['pn'].append(post_time)
-        # del boxes; del scores; del ids; del hm; del cropped_boxes; del orig_img;
-        # jt.gc()
-        # # jt.display_memory_info()
-        if args.profile:
-            im_names_desc.set_description('det time: {dt:.4f} | pose time: {pt:.4f} | post processing: {pn:.4f}'.format(dt=np.mean(runtime_profile['dt']),
-                                                                                                                        pt=np.mean(runtime_profile['pt']),
-                                                                                                                        pn=np.mean(runtime_profile['pn'])))
-    # print_finish_info()
-    # while writer.running():
-    #     time.sleep(1)
-    #     print((('===========================> Rendering remaining ' + str(writer.count())) + ' images in the queue...'))
-    # writer.stop()
-    # det_loader.stop()
-    #
-    # try:
-    #     for i in im_names_desc:
-    #         start_time = getTime()
-    #         with jt.no_grad():
-    #             (inps, orig_img, im_name, boxes, scores, ids, cropped_boxes) = det_loader.read()
-    #             if (orig_img is None):
-    #                 break
-    #             if ((boxes is None) or (len(boxes) == 0)):
-    #                 writer.save(None, None, None, None, None, orig_img, im_name)
-    #                 continue
-    #             if args.profile:
-    #                 (ckpt_time, det_time) = getTime(start_time)
-    #                 runtime_profile['dt'].append(det_time)
-    #             # inps = inps.to(args.device)
-    #             datalen = inps.size(0)
-    #             leftover = 0
-    #             if (datalen % batchSize):
-    #                 leftover = 1
-    #             num_batches = ((datalen // batchSize) + leftover)
-    #             hm = []
-    #             for j in range(num_batches):
-    #                 inps_j = inps[(j * batchSize):min(((j + 1) * batchSize), datalen)]
-    #                 if args.flip:
-    #                     inps_j = jt.contrib.concat((inps_j, flip(inps_j)))
-    #                 hm_j = pose_model(inps_j)
-    #                 if args.flip:
-    #                     hm_j_flip = flip_heatmap(hm_j[int((len(hm_j) / 2)):], pose_dataset.joint_pairs, shift=True)
-    #                     hm_j = ((hm_j[0:int((len(hm_j) / 2))] + hm_j_flip) / 2)
-    #                 hm.append(hm_j)
-    #             hm = jt.contrib.concat(hm)
-    #             if args.profile:
-    #                 (ckpt_time, pose_time) = getTime(ckpt_time)
-    #                 runtime_profile['pt'].append(pose_time)
-    #             if args.pose_track:
-    #                 (boxes, scores, ids, hm, cropped_boxes) = track(tracker, args, orig_img, inps, boxes, hm, cropped_boxes, im_name, scores)
-    #             # hm = hm.cpu()
-    #             writer.save(boxes, scores, ids, hm, cropped_boxes, orig_img, im_name)
-    #             if args.profile:
-    #                 (ckpt_time, post_time) = getTime(ckpt_time)
-    #                 runtime_profile['pn'].append(post_time)
-    #         if args.profile:
-    #             im_names_desc.set_description('det time: {dt:.4f} | pose time: {pt:.4f} | post processing: {pn:.4f}'.format(dt=np.mean(runtime_profile['dt']), pt=np.mean(runtime_profile['pt']), pn=np.mean(runtime_profile['pn'])))
-    #     print_finish_info()
-    #     while writer.running():
-    #         time.sleep(1)
-    #         print((('===========================> Rendering remaining ' + str(writer.count())) + ' images in the queue...'))
-    #     writer.stop()
-    #     det_loader.stop()
-    # except Exception as e:
-    #     print(repr(e))
-    #     print('An error as above occurs when processing the images, please check it')
-    #     pass
-    # except KeyboardInterrupt:
-    #     print_finish_info()
-    #     if args.sp:
-    #         det_loader.terminate()
-    #         while writer.running():
-    #             time.sleep(1)
-    #             print((('===========================> Rendering remaining ' + str(writer.count())) + ' images in the queue...'))
-    #         writer.stop()
-    #     else:
-    #         det_loader.terminate()
-    #         writer.terminate()
-    #         writer.clear_queues()
-    #         det_loader.clear_queues()
+                im_names_desc.set_description('det time: {dt:.4f} | pose time: {pt:.4f} | post processing: {pn:.4f}'.format(dt=np.mean(runtime_profile['dt']), pt=np.mean(runtime_profile['pt']), pn=np.mean(runtime_profile['pn'])))
+        print_finish_info()
+        while writer.running():
+            time.sleep(1)
+            print((('===========================> Rendering remaining ' + str(writer.count())) + ' images in the queue...'))
+        writer.stop()
+        det_loader.stop()
+    except Exception as e:
+        print(repr(e))
+        print('An error as above occurs when processing the images, please check it')
+        pass
+    except KeyboardInterrupt:
+        print_finish_info()
+        if args.sp:
+            det_loader.terminate()
+            while writer.running():
+                time.sleep(1)
+                print((('===========================> Rendering remaining ' + str(writer.count())) + ' images in the queue...'))
+            writer.stop()
+        else:
+            det_loader.terminate()
+            writer.terminate()
+            writer.clear_queues()
+            det_loader.clear_queues()

@@ -341,6 +341,7 @@ def example_video():
                         pt=np.mean(runtime_profile['pt']),
                         pn=np.mean(runtime_profile['pn'])))
 
+
 if (__name__ == '__main__'):
     if args.video != '':
         example_video()

@@ -10,6 +10,7 @@ import cv2
 import numpy as np
 from alphapose.utils.presets import SimpleTransform, SimpleTransform3DSMPL
 from alphapose.models import builder
+# import multiprocessing as mp
 
 class DetectionLoader():
 
@@ -51,17 +52,16 @@ class DetectionLoader():
             from easydict import EasyDict as edict
             dummpy_set = edict({'joint_pairs_17': None, 'joint_pairs_24': None, 'joint_pairs_29': None, 'bbox_3d_shape': (2.2, 2.2, 2.2)})
             self.transformation = SimpleTransform3DSMPL(dummpy_set, scale_factor=cfg.DATASET.SCALE_FACTOR, color_factor=cfg.DATASET.COLOR_FACTOR, occlusion=cfg.DATASET.OCCLUSION, input_size=cfg.MODEL.IMAGE_SIZE, output_size=cfg.MODEL.HEATMAP_SIZE, depth_dim=cfg.MODEL.EXTRA.DEPTH_DIM, bbox_3d_shape=(2.2, 2.2, 2.2), rot=cfg.DATASET.ROT_FACTOR, sigma=cfg.MODEL.EXTRA.SIGMA, train=False, add_dpg=False, loss_type=cfg.LOSS['TYPE'])
-        '\n        image_queue: the buffer storing pre-processed images for object detection\n        det_queue: the buffer storing human detection results\n        pose_queue: the buffer storing post-processed cropped human image for pose estimation\n        '
         if opt.sp:
             self._stopped = False
             self.image_queue = Queue(maxsize=queueSize)
             self.det_queue = Queue(maxsize=(10 * queueSize))
             self.pose_queue = Queue(maxsize=(10 * queueSize))
-        # else:
-        #     self._stopped = mp.Value('b', False)
-        #     self.image_queue = mp.Queue(maxsize=queueSize)
-        #     self.det_queue = mp.Queue(maxsize=(10 * queueSize))
-        #     self.pose_queue = mp.Queue(maxsize=(10 * queueSize))
+        else:
+            self._stopped = mp.Value('b', False)
+            self.image_queue = mp.Queue(maxsize=queueSize)
+            self.det_queue = mp.Queue(maxsize=(10 * queueSize))
+            self.pose_queue = mp.Queue(maxsize=(10 * queueSize))
 
     def start_worker(self, target):
         if self.opt.sp:
