@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" autoUpload="Always" serverName="robot01_ttt">
+  <component name="PublishConfigData" autoUpload="Always" serverName="21900">
     <serverData>
       <paths name="20200">
         <serverdata>
@@ -19,28 +19,14 @@
       <paths name="21900">
         <serverdata>
           <mappings>
-            <mapping local="$PROJECT_DIR$" web="/" />
+            <mapping deploy="/home/guest/AlphaPose_jittor" local="$PROJECT_DIR$" />
           </mappings>
         </serverdata>
       </paths>
       <paths name="24000_ttt">
         <serverdata>
           <mappings>
-            <mapping local="$PROJECT_DIR$" web="/" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="Copy of project-level server '20200'">
-        <serverdata>
-          <mappings>
-            <mapping local="$PROJECT_DIR$" web="/" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="Copy of project-level server '20200' (1)">
-        <serverdata>
-          <mappings>
-            <mapping local="$PROJECT_DIR$" web="/" />
+            <mapping deploy="/home/hanyang/AlphaPose_jittor" local="$PROJECT_DIR$" web="/" />
           </mappings>
         </serverdata>
       </paths>

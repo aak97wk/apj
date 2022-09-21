@@ -15,7 +15,7 @@ from tqdm import tqdm
 from utils import *
 from matching import orb_matching
 import argparse
-import multiprocessing
+# import multiprocessing
 from parallel_process import parallel_process
 
 def display_pose(imgdir, visdir, tracked, cmap):

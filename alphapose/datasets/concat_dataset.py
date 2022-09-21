@@ -24,7 +24,7 @@ class ConcatDataset(Dataset):
             self._subsets.append(subset)
             self._subset_size.append(len(subset))
         self.cumulative_sizes = self.cumsum(self._subset_size)
-
+        self.total_len = self.cumulative_sizes[(- 1)]
     def __getitem__(self, idx):
         assert (idx >= 0)
         dataset_idx = bisect.bisect_right(self.cumulative_sizes, idx)
@@ -40,7 +40,7 @@ class ConcatDataset(Dataset):
         return (img, expend_label, expend_label_mask, img_id, bbox)
 
     def __len__(self):
-        return self.cumulative_sizes[(- 1)]
+        return super().__len__()
 
     @staticmethod
     def cumsum(sequence):

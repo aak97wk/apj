@@ -23,7 +23,7 @@ from alphapose.utils.transforms import flip, flip_heatmap
 from alphapose.utils.vis import getTime
 from alphapose.utils.webcam_detector import WebCamDetectionLoader
 from alphapose.utils.writer import DataWriter
-import multiprocessing as mp
+# import multiprocessing as mp
 
 '----------------------------- Demo options -----------------------------'
 parser = argparse.ArgumentParser(description='AlphaPose Demo')
@@ -80,8 +80,8 @@ args.detbatch = (args.detbatch * len(args.gpus))
 args.posebatch = (args.posebatch * len(args.gpus))
 args.tracking = (args.pose_track or args.pose_flow or (args.detector == 'tracker'))
 
-if (not args.sp):
-    mp.set_start_method('forkserver', force=True)
+# if (not args.sp):
+#     mp.set_start_method('forkserver', force=True)
 
 def check_input():
     if (args.webcam != (- 1)):

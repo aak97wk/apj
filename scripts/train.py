@@ -16,14 +16,15 @@ from alphapose.utils.metrics import DataLogger, calc_accuracy, calc_integral_acc
 from alphapose.utils.transforms import get_func_heatmap_to_coord
 
 
-assert opt.nThreads == 0, 'AlphaPose_jittor only support nThreads is 0.'
+if opt.nThreads > 0:
+    jt.flags.use_threading = 1
 assert opt.sync == False, 'As nn.SyncBatchNorm is not implemented in Jittor, "sync" is not supportted for AlphaPose_jittor'
 if jt.has_cuda:
     jt.flags.use_cuda = 1
 else:
     jt.flags.use_cuda = 0
 
-num_gpu = jt.get_device_count()
+num_gpu = 1
 valid_batch = (1 * num_gpu)
 norm_layer = nn.BatchNorm2d
 
@@ -33,13 +34,8 @@ def train(opt, train_loader, m, criterion, optimizer, writer):
     combined_loss = (cfg.LOSS.get('TYPE') == 'Combined')
     m.train()
     norm_type = cfg.LOSS.get('NORM_TYPE', None)
-    # train_loader = tqdm(train_loader, dynamic_ncols=True)
-    bar = tqdm(range(len(train_loader) // train_loader.batch_size)) # tycoer
+    train_loader = tqdm(train_loader, dynamic_ncols=True)
     for (i, (inps, labels, label_masks, _, bboxes)) in enumerate(train_loader):
-        # if isinstance(inps, list):
-        #     inps = [inp.requires_grad_() for inp in inps]
-        # else:
-        #     inps = inps.requires_grad_()
         if isinstance(inps, list):
             for inp in inps:
                 inp.requires_grad = True
@@ -95,8 +91,12 @@ def train(opt, train_loader, m, criterion, optimizer, writer):
             board_writing(writer, loss_logger.avg, acc_logger.avg, opt.trainIters, 'Train')
         if (opt.debug and (not (i % 10))):
             debug_writing(writer, output, labels, inps, opt.trainIters)
-        train_loader.set_description('loss: {loss:.8f} | acc: {acc:.4f}'.format(loss=loss_logger.avg, acc=acc_logger.avg))
-        bar.update() # tycoer
+        train_loader.set_description(
+            'loss: {loss:.8f} | acc: {acc:.4f}'.format(
+                loss=loss_logger.avg,
+                acc=acc_logger.avg)
+        )
+
     train_loader.close()
     return (loss_logger.avg, acc_logger.avg)
 
@@ -112,8 +112,7 @@ def validate(m, opt, heatmap_to_coord, batch_size=20):
     hm_size = cfg.DATA_PRESET.HEATMAP_SIZE
     combined_loss = (cfg.LOSS.get('TYPE') == 'Combined')
     halpe = ((cfg.DATA_PRESET.NUM_JOINTS == 133) or (cfg.DATA_PRESET.NUM_JOINTS == 136))
-    bar = tqdm(range(len(det_loader) // det_loader.batch_size))
-    for (inps, crop_bboxes, bboxes, img_ids, scores, imghts, imgwds) in det_loader:
+    for inps, crop_bboxes, bboxes, img_ids, scores, imghts, imgwds in tqdm(det_loader, dynamic_ncols=True):
         if isinstance(inps, list):
             inps = [inp for inp in inps]
         else:
@@ -144,7 +143,6 @@ def validate(m, opt, heatmap_to_coord, batch_size=20):
             data['category_id'] = 1
             data['keypoints'] = keypoints
             kpt_json.append(data)
-        bar.update()
     sysout = sys.stdout
     with open(os.path.join(opt.work_dir, 'test_kpt.json'), 'w') as fid:
         json.dump(kpt_json, fid)
@@ -164,8 +162,7 @@ def validate_gt(m, opt, cfg, heatmap_to_coord, batch_size=20):
     hm_size = cfg.DATA_PRESET.HEATMAP_SIZE
     combined_loss = (cfg.LOSS.get('TYPE') == 'Combined')
     halpe = ((cfg.DATA_PRESET.NUM_JOINTS == 133) or (cfg.DATA_PRESET.NUM_JOINTS == 136))
-    bar = tqdm(range(len(gt_val_loader) // gt_val_loader.batch_size))
-    for (inps, labels, label_masks, img_ids, bboxes) in gt_val_loader:
+    for inps, labels, label_masks, img_ids, bboxes in tqdm(gt_val_loader, dynamic_ncols=True):
         if isinstance(inps, list):
             inps = [inp for inp in inps]
         else:
@@ -196,7 +193,6 @@ def validate_gt(m, opt, cfg, heatmap_to_coord, batch_size=20):
             data['category_id'] = 1
             data['keypoints'] = keypoints
             kpt_json.append(data)
-        bar.update()
     sysout = sys.stdout
     with open(os.path.join(opt.work_dir, 'test_gt_kpt.json'), 'w') as fid:
         json.dump(kpt_json, fid)
@@ -231,6 +227,7 @@ def main():
                                            # buffer_size=1024 * 1024 * 1024,
                                            ) # tycoer
     # train_loader = jt.utils.data.DataLoader(train_dataset, batch_size=(cfg.TRAIN.BATCH_SIZE * num_gpu), shuffle=True, num_workers=opt.nThreads)
+
     heatmap_to_coord = get_func_heatmap_to_coord(cfg)
     opt.trainIters = 0
     for i in range(cfg.TRAIN.BEGIN_EPOCH, cfg.TRAIN.END_EPOCH):

@@ -40,7 +40,7 @@ class Halpe_68_noface_det(Dataset):
         self._sigma = self._preset_cfg['SIGMA']
         if (self._preset_cfg['TYPE'] == 'simple'):
             self.transformation = SimpleTransform(self, scale_factor=0, input_size=self._input_size, output_size=self._output_size, rot=0, sigma=self._sigma, train=False, add_dpg=False)
-
+        self.total_len = len(self._det_json)
     def __getitem__(self, index):
         det_res = self._det_json[index]
         if (not isinstance(det_res['image_id'], int)):
@@ -57,7 +57,7 @@ class Halpe_68_noface_det(Dataset):
         return (inp, jt.Var(bbox), jt.Var([det_res['bbox']]), jt.Var([det_res['image_id']]), jt.Var([det_res['score']]), jt.Var([imght]), jt.Var([imgwidth]))
 
     def __len__(self):
-        return len(self._det_json)
+        return super(Halpe_68_noface_det, self).__len__()
 
     def write_coco_json(self, det_file):
         from pycocotools.coco import COCO

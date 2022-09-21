@@ -66,7 +66,7 @@ class CustomDataset(Dataset):
         else:
             raise NotImplementedError
         (self._items, self._labels) = self._lazy_load_json()
-
+        self.total_len = len(self._items)
     def __getitem__(self, idx):
         if (type(self._items[idx]) == dict):
             img_path = self._items[idx]['path']
@@ -80,7 +80,7 @@ class CustomDataset(Dataset):
         return (img, label, label_mask, img_id, bbox)
 
     def __len__(self):
-        return len(self._items)
+        return super().__len__()
 
     def _lazy_load_ann_file(self):
         if (os.path.exists((self._ann_file + '.pkl')) and self._lazy_import):
