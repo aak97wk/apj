@@ -1,5 +1,3 @@
-numpy
-cython
 six
 terminaltables
 scipy

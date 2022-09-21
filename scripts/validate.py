@@ -14,7 +14,7 @@ from alphapose.models import builder
 from alphapose.utils.config import update_config
 from alphapose.utils.metrics import evaluate_mAP
 from alphapose.utils.transforms import flip, flip_heatmap, get_func_heatmap_to_coord
-
+from jittor_implementations.mpi import fork_with_mpi
 
 parser = argparse.ArgumentParser(description='AlphaPose Validate')
 parser.add_argument('--cfg', help='experiment configure file name', required=True, type=str)
@@ -36,7 +36,8 @@ if opt.gpus and jt.has_cuda:
     jt.flags.use_cuda = 1
 else:
     jt.flags.use_cuda = 0
-# opt.device = torch.device((('cuda:' + str(opt.gpus[0])) if (opt.gpus[0] >= 0) else 'cpu'))
+num_gpu = jt.get_device_count()
+fork_with_mpi(num_procs=num_gpu)
 
 def validate(m, heatmap_to_coord, batch_size=20, num_workers=0):
     det_dataset = builder.build_dataset(cfg.DATASET.TEST, preset_cfg=cfg.DATA_PRESET, train=False, opt=opt)

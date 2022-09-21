@@ -14,7 +14,7 @@ from alphapose.opt import cfg, logger, opt
 from alphapose.utils.logger import board_writing, debug_writing
 from alphapose.utils.metrics import DataLogger, calc_accuracy, calc_integral_accuracy, evaluate_mAP
 from alphapose.utils.transforms import get_func_heatmap_to_coord
-
+from jittor_implementations.mpi import fork_with_mpi
 
 if opt.nThreads > 0:
     jt.flags.use_threading = 1
@@ -23,8 +23,10 @@ if jt.has_cuda:
     jt.flags.use_cuda = 1
 else:
     jt.flags.use_cuda = 0
+# multi-card
+num_gpu = jt.get_device_count()
+fork_with_mpi(num_procs=num_gpu)
 
-num_gpu = 1
 valid_batch = (1 * num_gpu)
 norm_layer = nn.BatchNorm2d
 
