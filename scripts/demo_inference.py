@@ -25,6 +25,7 @@ from alphapose.utils.webcam_detector import WebCamDetectionLoader
 from alphapose.utils.writer import DataWriter
 import multiprocessing as mp
 
+
 '----------------------------- Demo options -----------------------------'
 parser = argparse.ArgumentParser(description='AlphaPose Demo')
 parser.add_argument('--cfg', type=str, required=True, help='experiment configure file name')

@@ -11,6 +11,7 @@ import numpy as np
 from alphapose.utils.presets import SimpleTransform, SimpleTransform3DSMPL
 import multiprocessing as mp
 
+
 class FileDetectionLoader():
 
     def __init__(self, input_source, cfg, opt, queueSize=128):

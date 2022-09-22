@@ -56,6 +56,7 @@ class DataWriter():
         p.start()
         return p
 
+
     def start(self):
         self.result_worker = self.start_worker(self.update)
         return self
