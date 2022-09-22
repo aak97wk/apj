@@ -89,8 +89,6 @@ def evaluate_mAP(res_file, ann_type='bbox', ann_file='./data/coco/annotations/pe
 
 def calc_accuracy(preds, labels):
     'Calculate heatmap accuracy.'
-    preds = preds.numpy()
-    labels = labels.numpy()
     num_joints = preds.shape[1]
     norm = 1.0
     hm_h = preds.shape[2]
