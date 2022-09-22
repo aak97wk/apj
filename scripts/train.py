@@ -53,7 +53,6 @@ def train(opt, train_loader, m, criterion, optimizer, writer):
         output = m(inps)
         if (cfg.LOSS.get('TYPE') == 'MSELoss'):
             loss = (0.5 * criterion(output * (label_masks), labels * (label_masks)))
-            acc = calc_accuracy(output * (label_masks), labels * (label_masks))
         elif (cfg.LOSS.get('TYPE') == 'Combined'):
             if (output.shape[1] == 68):
                 face_hand_num = 42
@@ -61,43 +60,53 @@ def train(opt, train_loader, m, criterion, optimizer, writer):
                 face_hand_num = 110
             output_body_foot = output[:, :(- face_hand_num), :, :]
             output_face_hand = output[:, (- face_hand_num):, :, :]
-            num_body_foot = output_body_foot.shape[1]
-            num_face_hand = output_face_hand.shape[1]
             label_masks_body_foot = label_masks[0]
             label_masks_face_hand = label_masks[1]
             labels_body_foot = labels[0]
             labels_face_hand = labels[1]
             loss_body_foot = (0.5 * criterion[0](output_body_foot * (label_masks_body_foot), labels_body_foot * (label_masks_body_foot)))
-            acc_body_foot = calc_accuracy(output_body_foot * (label_masks_body_foot), labels_body_foot * (label_masks_body_foot))
             loss_face_hand = criterion[1](output_face_hand, labels_face_hand, label_masks_face_hand)
-            acc_face_hand = calc_integral_accuracy(output_face_hand, labels_face_hand, label_masks_face_hand, output_3d=False, norm_type=norm_type)
             loss_body_foot *= 100
             loss_face_hand *= 0.01
             loss = (loss_body_foot + loss_face_hand)
-            acc = (((acc_body_foot * num_body_foot) / (num_body_foot + num_face_hand)) + ((acc_face_hand * num_face_hand) / (num_body_foot + num_face_hand)))
         else:
             loss = criterion(output, labels, label_masks)
-            acc = calc_integral_accuracy(output, labels, label_masks, output_3d=False, norm_type=norm_type)
         if isinstance(inps, list):
             batch_size = inps[0].size(0)
         else:
             batch_size = inps.size(0)
-        loss_logger.update(loss.item(), batch_size)
-        acc_logger.update(acc, batch_size)
-        # optimizer.zero_grad()
-        # loss.backward()
-        # optimizer.step()
-        optimizer.step(loss) # tycoer
-        opt.trainIters += 1
-        if opt.board:
-            board_writing(writer, loss_logger.avg, acc_logger.avg, opt.trainIters, 'Train')
-        if (opt.debug and (not (i % 10))):
-            debug_writing(writer, output, labels, inps, opt.trainIters)
-        train_loader.set_description(
-            'loss: {loss:.8f} | acc: {acc:.4f}'.format(
-                loss=loss_logger.avg,
-                acc=acc_logger.avg)
-        )
+
+        optimizer.step(loss) 
+
+        def callback(i, batch_size, loss, output, labels, label_masks):
+            if (cfg.LOSS.get('TYPE') == 'MSELoss'):
+                acc = calc_accuracy(output * (label_masks), labels * (label_masks))
+            elif (cfg.LOSS.get('TYPE') == 'Combined'):
+                output_body_foot = output[:, :(- face_hand_num), :, :]
+                output_face_hand = output[:, (- face_hand_num):, :, :]
+                num_body_foot = output_body_foot.shape[1]
+                num_face_hand = output_face_hand.shape[1]
+                acc_body_foot = calc_accuracy(output_body_foot * (label_masks_body_foot), labels_body_foot * (label_masks_body_foot))
+                acc_face_hand = calc_integral_accuracy(output_face_hand, labels_face_hand, label_masks_face_hand, output_3d=False, norm_type=norm_type)
+                acc = (((acc_body_foot * num_body_foot) / (num_body_foot + num_face_hand)) + ((acc_face_hand * num_face_hand) / (num_body_foot + num_face_hand)))
+            else:
+                acc = calc_integral_accuracy(output, labels, label_masks, output_3d=False, norm_type=norm_type)
+
+            loss_logger.update(loss.item(), batch_size)
+            acc_logger.update(acc, batch_size)
+
+            opt.trainIters += 1
+            if opt.board:
+                board_writing(writer, loss_logger.avg, acc_logger.avg, opt.trainIters, 'Train')
+            if (opt.debug and (not (i % 10))):
+                debug_writing(writer, output, labels, inps, opt.trainIters)
+            train_loader.set_description(
+                'loss: {loss:.8f} | acc: {acc:.4f}'.format(
+                    loss=loss_logger.avg,
+                    acc=acc_logger.avg)
+            )
+
+        jt.fetch(i, batch_size, loss, output, labels, label_masks, callback)
 
     train_loader.close()
     return (loss_logger.avg, acc_logger.avg)
