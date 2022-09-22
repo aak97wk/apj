@@ -10,7 +10,7 @@ import cv2
 import numpy as np
 from alphapose.utils.presets import SimpleTransform, SimpleTransform3DSMPL
 from alphapose.models import builder
-# import multiprocessing as mp
+import multiprocessing as mp
 
 class DetectionLoader():
 
@@ -66,8 +66,8 @@ class DetectionLoader():
     def start_worker(self, target):
         if self.opt.sp:
             p = Thread(target=target, args=())
-        # else:
-        #     p = mp.Process(target=target, args=())
+        else:
+            p = mp.Process(target=target, args=())
         p.start()
         return p
 

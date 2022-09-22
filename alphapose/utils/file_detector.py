@@ -9,6 +9,7 @@ import json
 import cv2
 import numpy as np
 from alphapose.utils.presets import SimpleTransform, SimpleTransform3DSMPL
+import multiprocessing as mp
 
 class FileDetectionLoader():
 
@@ -58,15 +59,15 @@ class FileDetectionLoader():
         if opt.sp:
             self._stopped = False
             self.pose_queue = Queue(maxsize=queueSize)
-        # else:
-        #     self._stopped = mp.Value('b', False)
-        #     self.pose_queue = mp.Queue(maxsize=queueSize)
+        else:
+            self._stopped = mp.Value('b', False)
+            self.pose_queue = mp.Queue(maxsize=queueSize)
 
     def start_worker(self, target):
         if self.opt.sp:
             p = Thread(target=target, args=())
-        # else:
-        #     p = mp.Process(target=target, args=())
+        else:
+            p = mp.Process(target=target, args=())
         p.start()
         return p
 
