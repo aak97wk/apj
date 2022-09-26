@@ -14,7 +14,7 @@ parser.add_argument('--exp-id', default='default', type=str, help='Experiment ID
 '----------------------------- General options -----------------------------'
 parser.add_argument('--nThreads', default=60, type=int, help='Number of data loading threads')
 parser.add_argument('--snapshot', default=2, type=int, help='How often to take a snapshot of the model (0 = never)')
-parser.add_argument('--rank', default=(- 1), type=int, help='node rank for distributed training')
+# parser.add_argument('--rank', default=(- 1), type=int, help='node rank for distributed training')
 parser.add_argument('--dist-url', default='tcp://192.168.1.214:23345', type=str, help='url used to set up distributed training')
 parser.add_argument('--dist-backend', default='nccl', type=str, help='distributed backend')
 parser.add_argument('--launcher', choices=['none', 'pytorch', 'slurm', 'mpi'], default='none', help='job launcher')

@@ -147,7 +147,7 @@ class OSBlock(nn.Module):
         self.conv1 = Conv1x1(in_channels, mid_channels)
         self.conv2 = nn.ModuleList()
         for t in range(1, (T + 1)):
-            self.conv2 += [LightConvStream(mid_channels, mid_channels, t)]
+            self.conv2.append(LightConvStream(mid_channels, mid_channels, t))
         self.gate = ChannelGate(mid_channels)
         self.conv3 = Conv1x1Linear(mid_channels, out_channels)
         self.downsample = None
@@ -178,7 +178,7 @@ class OSBlockINin(nn.Module):
         self.conv1 = Conv1x1(in_channels, mid_channels)
         self.conv2 = nn.ModuleList()
         for t in range(1, (T + 1)):
-            self.conv2 += [LightConvStream(mid_channels, mid_channels, t)]
+            self.conv2.append(LightConvStream(mid_channels, mid_channels, t))
         self.gate = ChannelGate(mid_channels)
         self.conv3 = Conv1x1Linear(mid_channels, out_channels, bn=False)
         self.downsample = None
@@ -252,20 +252,22 @@ class OSNet(nn.Module):
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
                 if (m.bias is not None):
-                    init.constant_(m.bias, value=0)
+                    init.constant_(m.bias, value=0.0)
             elif isinstance(m, nn.BatchNorm2d):
+                if isinstance(m.weight, float):
+                    continue
                 init.constant_(m.weight, value=1)
-                init.constant_(m.bias, value=0)
+                init.constant_(m.bias, value=0.0)
             elif isinstance(m, nn.BatchNorm1d):
-                init.constant_(m.weight, value=1)
-                init.constant_(m.bias, value=0)
+                init.constant_(m.weight, value=1.0)
+                init.constant_(m.bias, value=0.0)
             elif isinstance(m, nn.InstanceNorm2d):
-                init.constant_(m.weight, value=1)
-                init.constant_(m.bias, value=0)
+                init.constant_(m.weight, value=1.0)
+                init.constant_(m.bias, value=0.0)
             elif isinstance(m, nn.Linear):
-                init.gauss_(m.weight, mean=0, std=0.01)
+                init.gauss_(m.weight, mean=0.0, std=0.01)
                 if (m.bias is not None):
-                    init.constant_(m.bias, value=0)
+                    init.constant_(m.bias, value=0.0)
 
     def featuremaps(self, x):
         x = self.conv1(x)

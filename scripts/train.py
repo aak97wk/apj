@@ -25,7 +25,8 @@ else:
     jt.flags.use_cuda = 0
 # multi-card
 num_gpu = jt.get_device_count()
-fork_with_mpi(num_procs=num_gpu)
+if num_gpu > 1:
+    fork_with_mpi(num_procs=num_gpu)
 
 valid_batch = (1 * num_gpu)
 norm_layer = nn.BatchNorm2d
@@ -250,13 +251,13 @@ def main():
         logger.epochInfo('Train', opt.epoch, loss, miou)
         lr_scheduler.step()
         if (((i + 1) % opt.snapshot) == 0):
-            jt.save(m.module.state_dict(), './exp/{}-{}/model_{}.pth'.format(opt.exp_id, cfg.FILE_NAME, opt.epoch))
+            jt.save(m.state_dict(), './exp/{}-{}/model_{}.pth'.format(opt.exp_id, cfg.FILE_NAME, opt.epoch))
             with jt.no_grad():
                 gt_AP = validate_gt(m.module, opt, cfg, heatmap_to_coord)
                 rcnn_AP = validate(m.module, opt, heatmap_to_coord)
                 logger.info(f'##### Epoch {opt.epoch} | gt mAP: {gt_AP} | rcnn mAP: {rcnn_AP} #####')
         if (i == cfg.TRAIN.DPG_MILESTONE):
-            jt.save(m.module.state_dict(), './exp/{}-{}/final.pth'.format(opt.exp_id, cfg.FILE_NAME))
+            jt.save(m.state_dict(), './exp/{}-{}/final.pth'.format(opt.exp_id, cfg.FILE_NAME))
             for param_group in optimizer.param_groups:
                 param_group['lr'] = cfg.TRAIN.LR
             lr_scheduler = jt.optim.lr_scheduler.MultiStepLR(optimizer, milestones=cfg.TRAIN.DPG_STEP, gamma=0.1)
@@ -264,7 +265,7 @@ def main():
             train_loader = train_dataset.set_attrs(batch_size=(cfg.TRAIN.BATCH_SIZE * num_gpu), shuffle=True,
                                                    num_workers=opt.nThreads, drop_last=True)  # tycoer
             # train_loader = jt.utils.data.DataLoader(train_dataset, batch_size=(cfg.TRAIN.BATCH_SIZE * num_gpu), shuffle=True, num_workers=opt.nThreads)
-    jt.save(m.module.state_dict(), './exp/{}-{}/final_DPG.pth'.format(opt.exp_id, cfg.FILE_NAME))
+    jt.save(m.state_dict(), './exp/{}-{}/final_DPG.pth'.format(opt.exp_id, cfg.FILE_NAME))
 
 def preset_model(cfg):
     model = builder.build_sppe(cfg.MODEL, preset_cfg=cfg.DATA_PRESET)

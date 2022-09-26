@@ -24,6 +24,7 @@ from alphapose.utils.vis import getTime
 from alphapose.utils.webcam_detector import WebCamDetectionLoader
 from alphapose.utils.writer import DataWriter
 import multiprocessing as mp
+from jittor_implementations.mpi import fork_with_mpi
 
 
 '----------------------------- Demo options -----------------------------'
@@ -46,7 +47,8 @@ parser.add_argument('--min_box_area', type=int, default=0, help='min box area to
 parser.add_argument('--detbatch', type=int, default=5, help='detection batch size PER GPU')
 parser.add_argument('--posebatch', type=int, default=64, help='pose estimation maximum batch size PER GPU')
 parser.add_argument('--eval', dest='eval', default=False, action='store_true', help='save the result json as coco format, using image index(int) instead of image name(str)')
-parser.add_argument('--gpus', type=str, dest='gpus', default='0', help='choose which cuda device to use by index and input comma to use multi gpus, e.g. 0,1,2,3. (input -1 for cpu only)')
+# parser.add_argument('--gpus', type=str, dest='gpus', default='0', help='choose which cuda device to use by index and input comma to use multi gpus, e.g. 0,1,2,3. (input -1 for cpu only)')
+parser.add_argument('--gpus', default=False, action='store_true', help='enable cuda model, if GPU ID is')
 parser.add_argument('--qsize', type=int, dest='qsize', default=1024, help='the length of result buffer, where reducing it will lower requirement of cpu memory')
 parser.add_argument('--flip', default=False, action='store_true', help='enable flip testing')
 parser.add_argument('--debug', default=False, action='store_true', help='print detail information')
@@ -66,16 +68,22 @@ args = parser.parse_args()
 cfg = update_config(args.cfg)
 if (platform.system() == 'Windows'):
     args.sp = True
-args.gpus = ([int(i) for i in args.gpus.split(',')] if (jt.get_device_count() >= 1) else [(- 1)])
+# args.gpus = ([int(i) for i in args.gpus.split(',')] if (jt.get_device_count() >= 1) else [(- 1)])
 
 # tycoer
+assert args.sp, "Multi-process is not support for AlphaPose_jittor"
 if args.sp:
     jt.flags.use_threading = True
-if jt.has_cuda and len(args.gpus) > 0:
+if jt.has_cuda and args.gpus:
     jt.flags.use_cuda = 1
+    num_gpu = jt.get_device_count()
+    if num_gpu > 1:
+        fork_with_mpi(num_procs=num_gpu)
+    args.gpus = list(range(num_gpu))
 else:
     jt.flags.use_cuda = 0
-assert args.sp, "Multi-process is not support for AlphaPose_jittor"
+    args.gpus = [0]
+
 
 args.detbatch = (args.detbatch * len(args.gpus))
 args.posebatch = (args.posebatch * len(args.gpus))

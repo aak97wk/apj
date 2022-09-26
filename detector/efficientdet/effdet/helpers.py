@@ -5,8 +5,9 @@ from jittor import nn
 import os
 from collections import OrderedDict
 try:
+    pass
 except ImportError:
-
+    pass
 def load_checkpoint(model, checkpoint_path):
     if (checkpoint_path and os.path.isfile(checkpoint_path)):
         print("=> Loading checkpoint '{}'".format(checkpoint_path))

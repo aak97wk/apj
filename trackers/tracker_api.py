@@ -13,16 +13,16 @@ import itertools
 import os.path as osp
 import time
 from jittor import nn
-from utils.utils import *
-from utils.log import logger
-from utils.kalman_filter import KalmanFilter
-from tracking.matching import *
-from tracking.basetrack import BaseTrack, TrackState
-from utils.transform import build_transforms
-from ReidModels.ResBnLin import ResModel
-from ReidModels.osnet import *
-from ReidModels.osnet_ain import osnet_ain_x1_0
-from ReidModels.resnet_fc import resnet50_fc512
+from .utils.utils import *
+from .utils.log import logger
+from .utils.kalman_filter import KalmanFilter
+from .tracking.matching import *
+from .tracking.basetrack import BaseTrack, TrackState
+from .utils.transform import build_transforms
+from .ReidModels.ResBnLin import ResModel
+from .ReidModels.osnet import *
+from .ReidModels.osnet_ain import osnet_ain_x1_0
+from .ReidModels.resnet_fc import resnet50_fc512
 
 class STrack(BaseTrack):
     shared_kalman = KalmanFilter()
@@ -165,8 +165,8 @@ class Tracker(object):
             m = resnet50_fc512(num_classes=1, pretrained=False)
         elif (self.opt.arch == 'osnet_ain'):
             m = osnet_ain_x1_0(num_classes=1, pretrained=False)
-        # self.model = nn.DataParallel(m, device_ids=args.gpus).to(args.device).eval()
-        self.model = m.eval()
+        self.model = m
+        self.model.eval()
         load_pretrained_weights(self.model, self.opt.loadmodel)
         self.tracked_stracks = []
         self.lost_stracks = []
@@ -187,7 +187,7 @@ class Tracker(object):
         assert (len(inps) == len(bboxs)), 'Unmatched Length Between Inps and Bboxs'
         assert (len(inps) == len(pose)), 'Unmatched Length Between Inps and Heatmaps'
         with jt.no_grad():
-            feats = self.model(inps).cpu().numpy()
+            feats = self.model(inps).numpy()
         bboxs = np.asarray(bboxs)
         if (len(bboxs) > 0):
             detections = [STrack(STrack.tlbr_to_tlwh(tlbrs[:]), 0.9, f, p, c, file_name, ps, 30) for (tlbrs, f, p, c, ps) in zip(bboxs, feats, pose, cropped_boxes, pscores)]
